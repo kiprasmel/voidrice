@@ -214,7 +214,11 @@ export MINIKUBE_IN_STYLE=false
 case "$OSTYPE" in
   solaris*) echo "SOLARIS" ;;
   darwin*)
-	  	echo "OSX"
+	  	# echo "OSX"
+
+		command -v "/usr/local/bin/ssh-askpass" &>/dev/null || { echo "please install https://github.com/theseal/ssh-askpass"; exit 1 }
+		SUDO_ASKPASS="/usr/local/bin/ssh-askpass"
+
 		export PATH="/usr/local/opt/python/libexec/bin:$PATH"
 	  
 		# see https://stackoverflow.com/a/57973942/9285308

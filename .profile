@@ -182,7 +182,7 @@ export PATH="$PATH:/opt/lampp"
 export PATH="$PATH:$HOME/.local/bin"
 
 # source some secrets
-source "$HOME/.secret"
+[ -f "$HOME/.secret" ] && source "$HOME/.secret"
 
 # sourcemod / sourcepawn
 export PATH="$PATH:$HOME/.local/share/sourcemod/addons/sourcemod/scripting"

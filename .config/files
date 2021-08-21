@@ -15,8 +15,12 @@ cfmb	${XDG_CONFIG_HOME:-$HOME/.config}/ncmpcpp/bindings
 cfmc	${XDG_CONFIG_HOME:-$HOME/.config}/ncmpcpp/config
 cfk	${XDG_CONFIG_HOME:-$HOME/.config}/sxhkd/sxhkdrc
 cfi	${XDG_CONFIG_HOME:-$HOME/.config}/i3/config
+cfy	${XDG_CONFIG_HOME:-$HOME/.config}/yabai/yabairc
+cfys	${XDG_CONFIG_HOME:-$HOME/.config}/yabai/skhdrc
+cfyk	${XDG_CONFIG_HOME:-$HOME/.config}/yabai/skhdrc
 cfib	${XDG_CONFIG_HOME:-$HOME/.config}/i3blocks/config
 
+cfp ~/.profile
 cfb	~/.bashrc
 cfr	~/.config/ranger/rc.conf
 cfg ~/.gitconfig

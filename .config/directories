@@ -58,6 +58,7 @@ pic	~/Pictures
 vv	~/Videos
 cf	${XDG_CONFIG_HOME:-$HOME/.config}
 cfc ${XDG_CONFIG_HOME:-$HOME/.config}/cputils
+yab ${XDG_CONFIG_HOME:-$HOME/.config}/yabai
 ca  ~/.cache
 bb  ~/.cache/builds
 sc	~/.local/bin

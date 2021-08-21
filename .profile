@@ -2,6 +2,8 @@
 # ~/.profile
 # Profile file. Runs on login. Environmental variables are set here.
 
+export SOURCED_DOT_PROFILE=1
+
 # Get default LARBS WM from ~/.local/share/larbs/wm
 export LARBSWM="$(cat ~/.local/share/larbs/wm 2>/dev/null)" &&
 	[ "$LARBSWM" = "dwm" ] || export LARBSWM="i3"
@@ -210,6 +212,10 @@ export MOZCONFIG="$HOME/.config/mozilla/mozconfig"
 # disable emoji in minikube
 export MINIKUBE_IN_STYLE=false
 
+# work
+
+export PIPEDRIVE_GIT_DIR="$HOME/fun"
+
 # https://stackoverflow.com/a/18434831
 case "$OSTYPE" in
   solaris*) echo "SOLARIS" ;;
@@ -223,11 +229,24 @@ case "$OSTYPE" in
 	  
 		# see https://stackoverflow.com/a/57973942/9285308
 		# make GNU commands available
-		export PATH="/usr/local/opt/coreutils/libexec/gnubin:${PATH}"
-		export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:${MANPATH}"
-		
-		export PATH="$PATH:/Applications/Firefox Developer Edition.app/Contents/MacOS/"
+		export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+		export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:$MANPATH"
 
+		# brew install gnu-time
+		# gtime -> just "time"
+		#
+		# needed for expected time calculation in .zshrc,
+		# just better compat w/ linux in general
+		#
+ 		# export PATH="/usr/local/opt/gnu-time/libexec/gnubin:$PATH"
+		
+		export PATH="/Applications/Firefox Developer Edition.app/Contents/MacOS/:$PATH"
+
+		export PATH="/Applications/Google Chrome.app/Contents/MacOS:$PATH"
+		BROWSER="/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome" # additional escape characters apparently still needed because of later evaluation
+
+		# add yabai (wm) scripts
+		export PATH="${XDG_CONFIG_HOME:-$HOME/.config}/yabai/scripts:$PATH"
 	  ;; 
   linux*)   #echo "LINUX" ;;
   		;;

@@ -55,5 +55,5 @@ def primeFactors(n):
 
 EOF
 
-python -i "$NOT_BLOAT"
+python3 -i "$NOT_BLOAT"
 

@@ -127,6 +127,7 @@
 
 	b = branch
 	ba = branch --all
+	bt = branch --track
 	bd = delete-branch # git-extras
 	bp = backup
 	backup = !git-backup # remote script, availabe @ github.com/kiprasmel/dotfiles/.local/bin/tools/git-backup

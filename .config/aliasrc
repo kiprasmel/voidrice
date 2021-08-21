@@ -209,6 +209,7 @@ gcob() { hub co -b $* }
 gb() { hub b $* }
 gbd() { hub bd $* }
 gba() { hub ba $* }
+gbt() { g bt $* }
 gr() { hub r $* }
 gri() { hub ri $* }
 gra() { g ra $* }

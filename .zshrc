@@ -2,8 +2,13 @@
 # handle mac-os specifics
 case "$OSTYPE" in
 	darwin*)
-		# source .profile if haven't already
-		[ -z "$SOURCED_DOT_PROFILE" ] && source "$HOME/.profile"
+		# disabled because no longer needed apparently -
+		# works just fine w/o it, even the 'date' stuff - 
+		# for it, just extending the $PATH is enough
+		# since we have the gnu-date installed
+		#
+		## source .profile if haven't already
+		#[ -z "$SOURCED_DOT_PROFILE" ] && source "$HOME/.profile"
 
 		# make gnu date (gdate) take over osx date
 		export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"

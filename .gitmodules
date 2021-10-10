@@ -4,3 +4,6 @@
 [submodule ".config/yabai"]
 	path = .config/yabai
 	url = https://github.com/kiprasmel/yabai-config.git
+[submodule ".config/iterm"]
+	path = .config/iterm
+	url = https://github.com/kiprasmel/iterm-config.git

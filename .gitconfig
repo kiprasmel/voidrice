@@ -21,6 +21,7 @@
 	safecrlf = false # hides warning message but doesn't impact `autocrlf` functionality
 	pager = diff-so-fancy | less --tabs=4 -RFX
 	longpaths = true
+	ignorecase = true
 [imap]
 	host = mail.kipras.org
 	user = kipras@kipras.org
@@ -70,6 +71,8 @@
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
+[url "ssh://git@github.com/pipedrive"]
+	insteadOf = https://github.com/pipedrive
 [init]
 	defaultBranch = master
 
@@ -115,8 +118,8 @@
 	adcawpf  = !git add ${GIT_PREFIX:-.} && git ca --no-edit && git push -f
 	agcawpf  = !git add               .  && git ca --no-edit && git push -f
 
-	adcawpfn = !git add ${GIT_PREFIX:-.} && git ca --no-edit && git push -f --no-verify # --no-verify to ignore husky's hooks
-	agcawpfn = !git add               .  && git ca --no-edit && git push -f --no-verify # --no-verify to ignore husky's hooks
+	adcawpfn = !git add ${GIT_PREFIX:-.} && git ca --no-edit --no-verify && git push -f --no-verify # --no-verify to ignore husky's hooks
+	agcawpfn = !git add               .  && git ca --no-edit --no-verify && git push -f --no-verify # --no-verify to ignore husky's hooks
 
 	adct     = !git add ${GIT_PREFIX:-.} && git c -m "TEMP" --no-verify # --no-verify to ignore husky's hooks 
 	agct     = !git add               .  && git c -m "TEMP" --no-verify # --no-verify to ignore husky's hooks 
@@ -150,7 +153,8 @@
 	cs = !clear && git status
 	csl = !clear && git sl
 	d = diff
-	dd = diff .
+	dd = !git diff ${GIT_PREFIX:-.}
+	dg = !git diff .
 	df = diff FETCH_HEAD
 	ds = diff --staged
 	e = exec
@@ -166,6 +170,9 @@
 					#
 	f = fetch
 	fa = fetch --all
+	fariom = !git fa && git riom
+	fariomw = !git fa && git rom
+	farom = !git fa && git rom
 	#g =
 	#h =
 	#i =
@@ -173,6 +180,7 @@
 	#k =
 	l = lg
 	lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+	lgp = lg --patch
 	ls = lg --stat
 	lgs = ls
 	lp = log --patch #--follow
@@ -186,6 +194,9 @@
 	# pa = push --all                                         # meh
 	pl = pull
 	pa = !git -c core.pager='' diff -u                      # "patch"
+	par = !git pa | grep '^[+-]'
+	parw = !git par | wc -l
+	paw = parw
 	ppr = pull-request # requires 'hub'
 	dpr = pull-request -d
 	prme =        pull-request --push -a kiprasmel  #--base        master  -epo                                                  # targets upstream TODO

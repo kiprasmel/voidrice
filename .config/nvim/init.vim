@@ -119,6 +119,10 @@ Plug 'nvim-lua/popup.nvim'
 Plug 'nvim-lua/plenary.nvim'
 Plug 'nvim-telescope/telescope.nvim'
 
+" 0.5+
+" TODO LSP
+"Plug 'https://github.com/neovim/nvim-lspconfig'
+
 """ TODO list:
 " https://github.com/romgrk/barbar.nvim
 " https://github.com/romgrk/winteract.vim
@@ -750,3 +754,8 @@ hi TabLineSel   ctermfg=White  ctermbg=DarkBlue  cterm=NONE
 
 " --- UndoTree ---
 nnoremap <F5> :UndotreeToggle<CR>
+
+" --- nvim-lsp ---
+" TODO LSP
+"lua require'lspconfig'.bashls.setup{}
+

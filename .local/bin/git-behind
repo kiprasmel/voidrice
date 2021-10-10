@@ -3,14 +3,11 @@
 #
 # print how many commits you're behind a specific branch
 #
-#
-
-#behind = "!f() { branch=\"$1\" && git rev-list --left-right --boundary @{\"$branch\"}... | grep '^-' | wc -l; }; f";
 
 usage="\
-Usage:
 
-$ git-behind <branchName>
+$ git-behind [l] [ref = master]                      # local  compare (default)
+$ git-behind  r  [ref = master  [remote = upstream]] # remote compare
 
 "
 
@@ -19,12 +16,48 @@ printUsage() {
 }
 
 git-behind() {
-	branch="$1";
+	case "$1" in
+		-h|--help)
+			printUsage
+			exit 0
+			;;
+	esac
 
-	[ -z "$branch" ] && printUsage && return 1;
+	[ -z "$1" ] && compareLocal=1
 
-	git rev-list --left-right --boundary @{"$branch"}... | grep '^-' | wc -l && return 0;
+	[ "$1" != "l" ] && [ "$1" != "r" ] && {
+		compareLocal=1
+		# do not shift so that the branch is picked up
+	}
+
+	[ "$1" == "l" ] && {
+		compareLocal=1
+		shift
+	}
+
+	[ "$1" == "r" ] && {
+		compareLocal=0
+		shift
+	}
+
+	branch="${1:-master}"
+
+	if [ "$compareLocal" -eq 1 ]; then
+		printf "$branch\n"
+
+		# git rev-list --left-right --boundary @{"$branch"}... | grep '^-' | wc -l
+		# TODO FIXME
+		git rev-list --left-right --boundary "$branch"... | grep '^-' | wc -l
+	else
+		remote="${2:-upstream}"
+		upstream="$remote/$branch"
+
+		printf "$upstream\n"
+
+		git fetch "$remote"
+		git rev-list "$upstream" ^HEAD | wc --lines
+	fi
 }
 
-git-behind "$@" && exit 0 || exit 1
+git-behind $*
 

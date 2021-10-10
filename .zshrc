@@ -59,16 +59,16 @@ prompt redhat
 fpath=($HOME/.config/zsh/completions $fpath)
 ##autoload -U compinit && compinit
 
-# source 'git-extras' completions
-# (https://github.com/tj/git-extras)
-[ -f "$HOME/.config/zsh/completions/git-extras-completion.zsh" ] && source "$HOME/.config/zsh/completions/git-extras-completion.zsh"
-
 stty stop undef		# Disable ctrl-s to freeze terminal.
 
 # make backspace work in vim + tmux environment
 # see https://superuser.com/a/793283/1012390
 stty erase "^?"
 # see also 'stty ek'
+
+# source 'git-extras' completions
+# (https://github.com/tj/git-extras)
+[ -f "$HOME/.config/zsh/completions/git-extras-completion.zsh" ] && source "$HOME/.config/zsh/completions/git-extras-completion.zsh"
 
 # Load aliases and shortcuts if existent.
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc"
@@ -413,8 +413,31 @@ bindkey -M menuselect '^M' .accept-line
 [ -f "${ZDOTDIR}/zsh-viexchange/zsh-viexchange.plugin.zsh" ] && source "${ZDOTDIR}/zsh-viexchange/zsh-viexchange.plugin.zsh"
 zstyle 'zle:exchange' highlight 'fg=26,bg=195'
 
-# Load zsh-syntax-highlighting; should be last. https://wiki.archlinux.org/index.php/Zsh#Fish-like-syntax-highlighting
-source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 2>/dev/null
+# nvm (all the stuff moved into .profile)
+# and most if it is no longer needed anyway
+#
+# nvm (extremely slow):
+# export NVM_DIR="$HOME/.nvm"
+# [ -s "/usr/local/opt/nvm/nvm.sh" ] && source "/usr/local/opt/nvm/nvm.sh" --no-use # This loads nvm
+# [ -s "/usr/local/opt/nvm/etc/bash_completion.d/nvm" ] && source "/usr/local/opt/nvm/etc/bash_completion.d/nvm" # This loads nvm bash_completion
+
+# nvm (fixed):
+# see https://gist.github.com/lukeshiru/e239528fbcc4bba9ae2ef406f197df0c#gistcomment-3898951
+
+#if ([ -s "$HOME/.nvm/nvm.sh" ] || [ -s "/usr/local/opt/nvm/nvm.sh" ]) && [ ! "$(type -f __init_nvm)" = function ]; then
+#	export NVM_DIR="$HOME/.nvm"
+#	# [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
+#	[ -s "/usr/local/opt/nvm/etc/bash_completion.d/nvm" ] && . "/usr/local/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+#	declare -a __node_commands=(nvm `find -L $NVM_DIR/versions/*/*/bin -type f -exec basename {} \; | sort -u`)
+#	function __init_nvm() {
+#		for i in "${__node_commands[@]}"; do unalias $i; done
+#		# . "$NVM_DIR"/nvm.sh
+#		[ -s "/usr/local/opt/nvm/nvm.sh" ] && . "/usr/local/opt/nvm/nvm.sh"  # This loads nvm
+#		unset __node_commands
+#		unset -f __init_nvm
+#	}
+#	for i in "${__node_commands[@]}"; do alias $i='__init_nvm && '$i; done
+#fi
 
 case "$OSTYPE" in
 	# https://unix.stackexchange.com/a/446380/332452
@@ -440,6 +463,9 @@ case "$OSTYPE" in
 		*)
 	;;
 esac
+
+# Load zsh-syntax-highlighting; should be last. https://wiki.archlinux.org/index.php/Zsh#Fish-like-syntax-highlighting
+source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 2>/dev/null
 
 [ -z "$TMUX" ] && {
 	bootTimeDuration=$((($(date +%s%N) - $bootTimeStart)/1000000))

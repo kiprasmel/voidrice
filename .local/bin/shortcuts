@@ -1,6 +1,6 @@
 #!/bin/sh
 
-[ -z "$SHORTCUTS_LS_CMD" ] && SHORTCUTS_LS_CMD="ls -a"
+SHORTCUTS_LS_CMD="ls -a"
 
 bmdirs="${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs"
 bmfiles="${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-files"

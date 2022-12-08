@@ -51,8 +51,8 @@
 	grep = auto
 [commit]
 	verbose = true
-	gpgSign = true
-	#gpgSign = false
+	#gpgSign = true
+	gpgSign = false
 [merge]
 	ff = no
 	conflictStyle = zdiff3 # https://git-scm.com/docs/git-merge#Documentation/git-merge.txt-mergeconflictStyle

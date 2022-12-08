@@ -76,7 +76,6 @@ export MSBuildSDKsPath="/opt/dotnet/sdk/3.0.100/Sdks";
 
 # Other program settings:
 export DICS="/usr/share/stardict/dic/"
-export SUDO_ASKPASS="$HOME/.local/bin/dmenupass"
 export FZF_DEFAULT_OPTS="--layout=reverse --height 40%"
 export LESS=-R
 #export LESSHISTFILE="$HOME/.cache/less/history"
@@ -265,7 +264,8 @@ case "$OSTYPE" in
 		if command -v "/usr/local/bin/ssh-askpass" &>/dev/null; then
 			export SUDO_ASKPASS="/usr/local/bin/ssh-askpass"
 		else
-			echo "please install https://github.com/theseal/ssh-askpass"
+			# irrelevant
+			#echo "please install https://github.com/theseal/ssh-askpass"
 		fi
 
 		# BEGIN PYTHON
@@ -317,6 +317,8 @@ case "$OSTYPE" in
 		;;
   linux*) 
 	  	#echo "LINUX" ;;
+
+		export SUDO_ASKPASS="$HOME/.local/bin/dmenupass"
 
   		;;
   bsd*)     #echo "BSD" ;;

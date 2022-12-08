@@ -176,17 +176,6 @@ ex=🎯:\
 
 # Various bs
 
-# gpg stuff
-# https://bbs.archlinux.org/viewtopic.php?pid=1490821#p1490821
-###export GPG="gpg2" # NO NEED, KEEP DISABLED UNLES U KNOW WHAT UR DOING
-export GPG_TTY=$(tty)
-export GPG_AGENT_INFO="_" # set to non-empty to avoid the check in /usr/bin/pass
-#eval $(keychain --eval -Q --quiet id_rsa)
-
-# see https://wiki.archlinux.org/index.php/GnuPG#Configure_pinentry_to_use_the_correct_TTY
-# questionable if I need this
-gpg-connect-agent updatestartuptty /bye >/dev/null
-
 # react-native
 # https://facebook.github.io/react-native/docs/getting-started#3-configure-the-android_home-environment-variable
 export ANDROID_HOME="$HOME"/Android/Sdk
@@ -254,6 +243,15 @@ case "$OSTYPE" in
   darwin*)
 	  	# echo "OSX"
 
+		# homebrew env
+		# update via: "/opt/homebrew/bin/brew shellenv"
+		export HOMEBREW_PREFIX="/opt/homebrew"
+		export HOMEBREW_CELLAR="/opt/homebrew/Cellar"
+		export HOMEBREW_REPOSITORY="/opt/homebrew"
+		export PATH="/opt/homebrew/bin:/opt/homebrew/sbin${PATH+:$PATH}"
+		export MANPATH="/opt/homebrew/share/man${MANPATH+:$MANPATH}:"
+		export INFOPATH="/opt/homebrew/share/info:${INFOPATH:-}"
+
 		# begin load nvm
 		export NVM_DIR="$HOME/.config/nvm"
 		[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
@@ -294,6 +292,8 @@ case "$OSTYPE" in
 		export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
 		export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:$MANPATH"
 
+		export PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
+
 		# brew install gnu-time
 		# gtime -> just "time"
 		#
@@ -329,11 +329,24 @@ case "$OSTYPE" in
   		;;
 esac
 
-# needs to be below because nvm
-# see https://stackoverflow.com/a/15646750/9285308
-# and https://github.com/yarnpkg/yarn/issues/2049#issuecomment-397629921
-export NODE_PATH="$(yarn global dir)"
-export PATH="$NODE_PATH/node_modules/bin:$PATH"
+# gpg stuff
+# https://bbs.archlinux.org/viewtopic.php?pid=1490821#p1490821
+###export GPG="gpg2" # NO NEED, KEEP DISABLED UNLES U KNOW WHAT UR DOING
+export GPG_TTY=$(tty)
+export GPG_AGENT_INFO="_" # set to non-empty to avoid the check in /usr/bin/pass
+#eval $(keychain --eval -Q --quiet id_rsa)
+
+# see https://wiki.archlinux.org/index.php/GnuPG#Configure_pinentry_to_use_the_correct_TTY
+# questionable if I need this
+gpg-connect-agent updatestartuptty /bye >/dev/null
+
+command -v yarn &>/dev/null && {
+	# needs to be below because nvm
+	# see https://stackoverflow.com/a/15646750/9285308
+	# and https://github.com/yarnpkg/yarn/issues/2049#issuecomment-397629921
+	export NODE_PATH="$(yarn global dir)"
+	export PATH="$NODE_PATH/node_modules/bin:$PATH"
+}
 
 # pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"

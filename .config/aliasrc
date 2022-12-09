@@ -173,22 +173,23 @@ __gitwrap() {
 git() {
 	__gitwrap $*
 }
-compdef git="hub"
+compdef git="git"
+#compdef git="hub"
 
 g() {
 	__gitwrap $*
 }
-compdef g="hub"
+compdef g="git"
 
 gnp() {
 	__gitwrap --no-pager $*
 }
-compdef gnp="hub"
+compdef gnp="git"
 
 config() {
 	__gitwrap --git-dir="$HOME/.dotfiles/" --work-tree="$HOME" $*
 }
-compdef config="hub"
+compdef config="git"
 
 # Fast clipboard copying
 # -r removes the last newline! https://stackoverflow.com/a/43830018/9285308

@@ -4,8 +4,18 @@
 # can be accurately measured
 case "$OSTYPE" in
 	darwin*)
-		# make gnu date (gdate) take over osx date
-		export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+		# make gnu date (gdate) take over osx date, & other utils.
+		# see
+		# https://apple.stackexchange.com/a/371984/429613
+		HOMEBREW_PREFIX=$(brew --prefix)
+
+		for d in ${HOMEBREW_PREFIX}/opt/*/libexec/gnubin; do
+			export PATH="$d:$PATH"
+		done
+
+		for d in ${HOMEBREW_PREFIX}/opt/*/libexec/gnuman; do
+			export MANPATH="$d:$MANPATH"
+		done
 		;;
 	*)
 		;;

@@ -196,8 +196,14 @@ compdef config="git"
 clip() { xclip -r -selection c ;}      # pipe  into  me
 copy() { xclip -r -selection c "$1" ;} # gimme the file
 
-pbpaste()     { xclip -r -selection clipboard -o }
-pbpasteprim() { xclip -r -selection primary   -o }
+case "$OSTYPE" in
+	darwin*)
+		;;
+	*)
+		pbpaste()     { xclip -r -selection clipboard -o }
+		pbpasteprim() { xclip -r -selection primary   -o }
+		;;
+esac
 
 primtoclip()  { printf "$(pbpasteprim)" | clip   }
 primtocopy()  { printf "$(pbpasteprim)" | clip   }

@@ -7,3 +7,6 @@
 [submodule ".config/yabai"]
 	path = .config/yabai
 	url = https://github.com/kiprasmel/yabai-config.git
+[submodule ".config/zsh/zsh-viexchange"]
+	path = .config/zsh/zsh-viexchange
+	url = /Users/kipras/.config/zsh./zsh-viexchange

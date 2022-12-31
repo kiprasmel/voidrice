@@ -30,14 +30,14 @@ export STATUS_CLIPBOARD_FAILURE=2   # likely to be empty, thought not all tools 
 export STATUS_CLIPBOARD_UNHANDLED=3
 
 paste_from_clipboard() {
-	return 0
-
-	  if command -v xclip   &>/dev/null; then
+	if false; then
+		:
+	elif command -v pbpaste &>/dev/null; then pbpaste             || return $STATUS_CLIPBOARD_FAILURE
+	elif command -v xclip   &>/dev/null; then
 		                xclip -selection clipboard -o 2>/dev/null && return 0 \
 		             || xclip -selection primary   -o 2>/dev/null && return 0 \
 		             ||                                              return $STATUS_CLIPBOARD_FAILURE
 	elif command -v xsel    &>/dev/null; then xsel --clipboard    || return $STATUS_CLIPBOARD_FAILURE
-	elif command -v pbpaste &>/dev/null; then pbpaste             || return $STATUS_CLIPBOARD_FAILURE
 	elif ls /dev/clipboard  &>/dev/null; then cat /dev/clipboard  || return $STATUS_CLIPBOARD_FAILURE
 	# elif ... # add your's!
 	else return $STATUS_CLIPBOARD_UNHANDLED

@@ -498,15 +498,9 @@ zstyle 'zle:exchange' highlight 'fg=195,bg=26'
 # note: sucks - do not use!
 #source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/zsh-autocomplete/zsh-autocomplete.plugin.zsh"
 
-# Load zsh-syntax-highlighting; should be last. https://wiki.archlinux.org/index.php/Zsh#Fish-like-syntax-highlighting
-source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 2>/dev/null
-
 case "$OSTYPE" in
 	# https://unix.stackexchange.com/a/446380/332452
 	darwin*)
-		# zsh-autosuggestions
- 		source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-
 		# iterm2
 		test -e "${ZDOTDIR}/.iterm2_shell_integration.zsh" && source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
 		
@@ -527,17 +521,31 @@ case "$OSTYPE" in
 
 		# diff apparently doesn't have --color=always
 		unalias diff
+
+		_load_zsh_stuff_by_platform() {
+			# zsh-autosuggestions
+			source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+			# zsh-syntax-highlighting.
+			source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+		}
 		;;
 	*)
-		# zsh-autosuggestions
-		source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+		_load_zsh_stuff_by_platform() {
+			# zsh-autosuggestions
+			source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+			# zsh-syntax-highlighting.
+			# https://wiki.archlinux.org/title/Zsh#Fish-like_syntax_highlighting_and_autosuggestions
+			source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh # 2>/dev/null
+		}
 	;;
 esac
 
-export GPG_SIGNING_KEY="$(cat "$HOME"/.gnupg/key)"
+# see above
+_load_zsh_stuff_by_platform
 
-# Load zsh-syntax-highlighting; should be last. https://wiki.archlinux.org/index.php/Zsh#Fish-like-syntax-highlighting
-source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 2>/dev/null
+export GPG_SIGNING_KEY="$(cat "$HOME"/.gnupg/key)"
 
 [ -z "$TMUX" ] && {
 	bootTimeDuration=$((($(date +%s%N) - $bootTimeStart)/1000000))

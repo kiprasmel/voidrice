@@ -33,6 +33,8 @@ These are the dotfiles deployed by [LARBS](https://larbs.xyz), as seen on [Luke'
 
 ## Install these dotfiles and all dependencies
 
+### Arch Linux
+
 On an Arch Linux (or similar) system, use [LARBS](https://larbs.xyz) ([Kipras' fork](https://github.com/kiprasmel/larbs)) to autoinstall everything:
 
 ```sh
@@ -43,7 +45,16 @@ curl -LO http://raw.githubusercontent.com/kiprasmel/LARBS/master/larbs.sh
 ./larbs.sh -r https://github.com/kiprasmel/voidrice
 ```
 
-or, clone the repository directly to your home directory and install [the prerequisite programs](https://github.com/kiprasmel/LARBS/blob/master/progs.csv) (or equivalent, e.g. on macos at least GNU `coreutils` are needed).
+### MacOS
+
+Some is automated, some is not (yet).
+See my recent notes for the steps to take to fully setup:
+
+https://notes.kipras.org/macos.html#xe5IP3iU-
+
+### Other
+
+alternatively, clone the repository directly to your home directory and install [the prerequisite programs](https://github.com/kiprasmel/LARBS/blob/master/progs.csv) (or equivalent, e.g. on macos at least GNU `coreutils` are needed).
 
 ## Managing these dotfiles
 

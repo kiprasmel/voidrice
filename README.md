@@ -1,4 +1,6 @@
-# The Voidrice (Kipras' fork of [Luke Smith's dotfiles](https://github.com/lukesmithxyz/voidrice))
+# voidrice
+
+Kipras' fork of [Luke Smith](http://lukesmith.xyz)'s [dotfiles](https://github.com/lukesmithxyz/voidrice).
 
 These are the dotfiles deployed by [LARBS](https://larbs.xyz), as seen on [Luke's YouTube channel](https://youtube.com/c/lukesmithxyz).
 
@@ -35,6 +37,8 @@ These are the dotfiles deployed by [LARBS](https://larbs.xyz), as seen on [Luke'
 
 ### Arch Linux
 
+![](./.local/share/archrice.png)
+
 On an Arch Linux (or similar) system, use [LARBS](https://larbs.xyz) ([Kipras' fork](https://github.com/kiprasmel/larbs)) to autoinstall everything:
 
 ```sh
@@ -46,6 +50,8 @@ curl -LO http://raw.githubusercontent.com/kiprasmel/LARBS/master/larbs.sh
 ```
 
 ### MacOS
+
+![](./.local/share/macrice.png)
 
 Some is automated, some is not (yet).
 See my recent notes for the steps to take to fully setup:

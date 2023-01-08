@@ -72,7 +72,6 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1 # https://wiki.archlinux.org/index.php/.NET
 export DOTNET_ROOT="/opt/dotnet" # https://wiki.archlinux.org/index.php/.NET_Core#Troubleshooting
 export MSBuildSDKsPath="/opt/dotnet/sdk/3.0.100/Sdks";
 #export MSBuildSDKsPath="/opt/dotnet/sdk/2.2.108/Sdks";
-##export N_PREFIX="$HOME/.local/share/n"
 
 # Other program settings:
 export DICS="/usr/share/stardict/dic/"
@@ -251,6 +250,11 @@ case "$OSTYPE" in
 		export PATH="/opt/homebrew/bin:/opt/homebrew/sbin${PATH+:$PATH}"
 		export MANPATH="/opt/homebrew/share/man${MANPATH+:$MANPATH}:"
 		export INFOPATH="/opt/homebrew/share/info:${INFOPATH:-}"
+
+		# "n" prefix on M1.
+		# on intel macs, would be "/usr/local/" or "~/.local/share".
+		# is needed so that won't need `sudo` for `n` / `npm`
+		export N_PREFIX="/opt/homebrew"
 
 		# begin load nvm
 		export NVM_DIR="$HOME/.config/nvm"

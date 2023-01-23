@@ -350,6 +350,8 @@ command -v yarn &>/dev/null && {
 	# and https://github.com/yarnpkg/yarn/issues/2049#issuecomment-397629921
 	export NODE_PATH="$(yarn global dir)"
 	export PATH="$NODE_PATH/node_modules/bin:$PATH"
+
+	export PATH="$(yarn global bin):$PATH"
 }
 
 # pnpm

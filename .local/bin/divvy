@@ -1,0 +1,181 @@
+#!/usr/bin/env node
+
+const fs = require("fs")
+const cp = require("child_process")
+const assert = require("assert")
+
+const FILE_STDIN = "-"
+
+/**
+ * group lines of stdin into groups of size of N,
+ * and print each group into a new line.
+ *
+ * name comes from haskell's "divvy",
+ * which functions the same way, just for arrays.
+ *
+ * "windows", or "rolling window", are also used in some places..
+ *
+ *
+ *
+ * example use cases:
+ *
+ * a directory contains versions of a file,
+ * and you want to compute the diff between each.
+ *
+ * '''sh
+ * ls -1 | divvy 2 | xargs -n2 diff
+ * '''
+ *
+ * or, with -x/--exec
+ *
+ * '''sh
+ * ls -1 | divvy 2 -x "diff %* ||:"
+ * '''
+ *
+ * the only magic in the exec above is "%*",
+ * which receives all args.
+ *
+ * the '||:' is '|| true', needed because
+ * 'diff' exits with non-0 exit code if there's a difference.
+ * see https://stackoverflow.com/a/40650331/9285308
+ *
+ *
+ * similar example, but outputting each diff to a different file:
+ *
+ * '''sh
+ * mkdir diffs
+ * ls -1 | divvy 2 -x "diff %* > diffs/%0-%1.diff ||:"
+ *
+ * ls diffs
+ * # 0-1.diff  1-2.diff  2-3.diff  3-4.diff  4-5.diff  5-6.diff
+ * '''
+ *
+ * here, %0 and %1 refer to the i-th and i+1-th indexes
+ * of the original input "array"
+ *
+ *
+ */
+function divvy({
+	window_size,
+	file = FILE_STDIN,
+	exec = null,
+}) {
+	const content = readContent(file)
+	const windows = rollingWindow(content, window_size)
+
+	let i = 0
+	for (const win of windows) {
+		if (!exec) {
+			const line = win.join(" ") + "\n"
+			process.stdout.write(line)
+		} else {
+			let vars = []
+			for (let v = 0; v < window_size; v++) {
+				vars[v] = i + v
+			}
+			const windowToGlobalIndices = vars.entries()
+
+			const templateVars = [
+					...windowToGlobalIndices, //
+					["*", win.join(" ")],
+			].map(([key, val]) => ["%" + key, val])
+
+			const parsedExec = template(exec, templateVars)
+			const cmd = exec.includes("%*") ? parsedExec : [parsedExec, ...win].join(" ")
+
+			log({ exec, parsedExec, win, cmd })
+
+			cp.execSync(cmd, { encoding: "utf-8", stdio: "inherit" })
+		}
+
+		++i
+	}
+}
+
+function readContent(file) {
+	const filepath = file === FILE_STDIN //
+		? process.stdin.fd
+		: file
+
+	const content = fs.readFileSync(filepath).toString().split("\n")
+
+	if (content.at(-1).trim() === "") {
+		content.pop()
+	}
+
+	return content
+}
+
+function* rollingWindow(arr, size) {
+	for (let i = 0; i < arr.length - size + 1; i++) {
+		const window = arr.slice(i, i + size)
+		assert.deepStrictEqual(window.length, size)
+		yield window
+	}
+}
+
+function template(exec, entries) {
+	const replaceRaw = (acc, [key, val]) => acc.split(key).join(val)
+	return entries.reduce(replaceRaw, exec)
+}
+
+function divvy_cli(argv = process.argv.slice(2)) {
+	const args = {
+		verbose: 0,
+	}
+	const eat = () => argv.shift()
+
+	while (argv.length) {
+		const arg = eat()
+
+		if (["-x", "--exec"].includes(arg)) {
+			args.exec = eat()
+		} else if (["-v", "--verbose"].includes(arg)) {
+			args.verbose++
+		} else {
+			if (!args.window_size) {
+				args.window_size = Number(arg)
+			} else if (!args.file) {
+				args.file = arg
+			} else {
+				process.stderr.write(`divvy: unknown arg: "${arg}".\n`)
+				process.exit(1)
+			}
+		}
+	}
+
+	injectLog({ verbose: args.verbose })
+
+	if (!("window_size" in args)) {
+		process.stderr.write(`divvy: missing 1st arg "window_size".\n`)
+		process.exit(1)
+	}
+
+	log({ args })
+
+	divvy(args)
+	process.exit(0)
+}
+
+let log
+function injectLog({ verbose }) {
+	if (verbose < 1) {
+		log = (..._xs) => void 0
+	} else {
+		log = console.error
+	}
+}
+
+module.exports = {
+	FILE_STDIN,
+	divvy,
+	divvy_cli,
+	readContent,
+	rollingWindow,
+	template,
+}
+
+if (!module.parent) {
+	divvy_cli()
+}
+

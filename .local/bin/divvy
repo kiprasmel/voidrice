@@ -63,34 +63,39 @@ function divvy({
 	const content = readContent(file)
 	const windows = rollingWindow(content, window_size)
 
-	let i = 0
-	for (const win of windows) {
+	// for padding later
+	const maxWidth = windows.length.toString().length
+
+	for (let i = 0; i < windows.length; i++) {
+		const win = windows[i]
 		if (!exec) {
 			const line = win.join(" ") + "\n"
 			process.stdout.write(line)
 		} else {
-			let vars = []
-			for (let v = 0; v < window_size; v++) {
-				vars[v] = i + v
+			/**
+			 * local => current window
+			 * global => whole array
+			*/
+			let localToGlobalArrIndices = []
+			for (let local = 0; local < window_size; local++) {
+				const global = i + local
+				const globalPadded = padLeftWith("0", maxWidth, global.toString())
+
+				localToGlobalArrIndices[local] = globalPadded
 			}
 
-			const padder = ([idx, globalArrIdx]) => [idx, padLeftWith("0", windows.length.toString().length, globalArrIdx.toString())]
-			const windowToGlobalIndicesPadded = Array.from(vars.entries()).map(padder)
-
-			const templateVars = [
-					...windowToGlobalIndicesPadded, //
+			const templatelocalToGlobalArrIndices = [
+					...localToGlobalArrIndices.entries(), //
 					["*", win.join(" ")],
 			].map(([key, val]) => ["%" + key, val])
 
-			const parsedExec = template(exec, templateVars)
+			const parsedExec = template(exec, templatelocalToGlobalArrIndices)
 			const cmd = exec.includes("%*") ? parsedExec : [parsedExec, ...win].join(" ")
 
 			log({ exec, parsedExec, win, cmd })
 
 			cp.execSync(cmd, { encoding: "utf-8", stdio: "inherit" })
 		}
-
-		++i
 	}
 }
 

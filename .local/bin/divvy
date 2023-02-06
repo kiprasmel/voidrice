@@ -73,10 +73,12 @@ function divvy({
 			for (let v = 0; v < window_size; v++) {
 				vars[v] = i + v
 			}
-			const windowToGlobalIndices = vars.entries()
+
+			const padder = ([idx, globalArrIdx]) => [idx, padLeftWith("0", windows.length.toString().length, globalArrIdx.toString())]
+			const windowToGlobalIndicesPadded = Array.from(vars.entries()).map(padder)
 
 			const templateVars = [
-					...windowToGlobalIndices, //
+					...windowToGlobalIndicesPadded, //
 					["*", win.join(" ")],
 			].map(([key, val]) => ["%" + key, val])
 
@@ -106,12 +108,20 @@ function readContent(file) {
 	return content
 }
 
-function* rollingWindow(arr, size) {
+function rollingWindow(arr, size) {
+	let windows = []
+
 	for (let i = 0; i < arr.length - size + 1; i++) {
 		const window = arr.slice(i, i + size)
 		assert.deepStrictEqual(window.length, size)
-		yield window
+		windows.push(window)
 	}
+
+	return windows
+}
+
+function padLeftWith(padding, maxWidth, str) {
+	return (padding.repeat(maxWidth - str.length) + str)
 }
 
 function template(exec, entries) {

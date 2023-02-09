@@ -1,17 +1,63 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # A UI for detecting and selecting all displays. Probes xrandr for connected
 # displays and lets user select one to use. User may also select "manual
 # selection" which opens arandr.
+#
+# see also `mon2` script
+# for quickly applying predefined monitor configurations.
+#
+
+# BEGIN CUSTOM_ASKER
+PREDEFINED_CHOICES=("$@")
+PREDEFINED_CHOICES_IDX=0
+
+# SHALL NOT be called inside a subshell,
+# e.g. $(ask "foo" "bar"),
+# because won't modify "PREDEFINED_CHOICES_IDX".
+#
+# use MY_VAR=$(ans)
+#
+_ask() {
+	if test ${#PREDEFINED_CHOICES[@]} -gt $PREDEFINED_CHOICES_IDX; then
+		choice="${PREDEFINED_CHOICES[$PREDEFINED_CHOICES_IDX]}"
+		# PREDEFINED_CHOICES_IDX=$(( PREDEFINED_CHOICES_IDX + 1 ))
+		# PREDEFINED_CHOICES_IDX+=1
+		# echo "$choice. idx=$PREDEFINED_CHOICES_IDX" >> choices
+
+		PREDEFINED_CHOICES_IDX=$(( PREDEFINED_CHOICES_IDX + 1 ))
+
+		printf "$choice"
+	else
+		question="$1"
+		choices="$2"
+		shift
+		shift
+
+		printf "$choices" | dmenu -i -p "$question"
+	fi
+}
+
+ANS_DIR_PATH="/tmp/monitors/$$"
+mkdir -p "$ANS_DIR_PATH"
+ANS_FILEPATH="$ANS_DIR_PATH/ans"
+ask() {
+	_ask $* > "$ANS_FILEPATH"
+}
+ans() {
+	cat "$ANS_FILEPATH"
+}
+# END CUSTOM_ASKER
 
 twoscreen() { # If multi-monitor is selected and there are two screens.
-
-    mirror=$(printf "no\\nyes" | dmenu -i -p "Mirror displays?")
+    ask "Mirror displays?" "no\\nyes"
+	mirror=$(ans)
     # Mirror displays using native resolution of external display and a scaled
     # version for the internal display
     if [ "$mirror" = "yes" ]; then
-        external=$(echo "$screens" | dmenu -i -p "Optimize resolution for:")
-        internal=$(echo "$screens" | grep -v "$external")
+		ask "Optimize resolution for:" "$screens"
+        external=$(ans)
+        internal=$(grep -v "$external" "$screens")
 
         res_external=$(xrandr --query | sed -n "/^$external/,/\+/p" | \
             tail -n 1 | awk '{print $1}')
@@ -30,19 +76,29 @@ twoscreen() { # If multi-monitor is selected and there are two screens.
             --output "$internal" --auto --same-as "$external" \
             --scale "$scale_x"x"$scale_y"
     else
-
-        primary=$(echo "$screens" | dmenu -i -p "Select primary display:")
+		ask "Select primary display:" "$screens"
+        primary=$(ans)
         secondary=$(echo "$screens" | grep -v "$primary")
-        direction=$(printf "left\\nright" | dmenu -i -p "What side of $primary should $secondary be on?")
+		ask "What side of $primary should $secondary be on?" "left\\nright"
+        direction=$(ans)
         xrandr --output "$primary" --auto --scale 1.0x1.0 --output "$secondary" --"$direction"-of "$primary" --auto --scale 1.0x1.0
     fi
     }
 
 morescreen() { # If multi-monitor is selected and there are more than two screens.
-	primary=$(echo "$screens" | dmenu -i -p "Select primary display:")
-	secondary=$(echo "$screens" | grep -v "$primary" | dmenu -i -p "Select secondary display:")
-	direction=$(printf "left\\nright" | dmenu -i -p "What side of $primary should $secondary be on?")
-	tertiary=$(echo "$screens" | grep -v "$primary" | grep -v "$secondary" | dmenu -i -p "Select third display:")
+	ask "Select primary display:" "$screens"
+	primary=$(ans)
+
+	secondary_choices="$(echo "$screens" | grep -v "$primary")"
+	ask "Select secondary display:" "$secondary_choices"
+	secondary=$(ans)
+
+	ask "What side of $primary should $secondary be on?" "left\\nright"
+	direction=$(ans)
+
+	tertiary_choices="$(echo "$screens" | grep -v "$primary" | grep -v "$secondary")"
+	ask "Select third display:" "$tertiary_choices"
+	tertiary=$(ans)
 	xrandr --output "$primary" --auto --output "$secondary" --"$direction"-of "$primary" --auto --output "$tertiary" --"$(printf "left\\nright" | grep -v "$direction")"-of "$primary" --auto
 	}
 
@@ -73,7 +129,8 @@ screens=$(echo "$allposs" | awk '/ connected/ {print $1}')
 	{ onescreen "$screens"; postrun; notify-send "💻 Only one screen detected." "Using it in its optimal settings...";  exit ;}
 
 # Get user choice including multi-monitor and manual selection:
-chosen=$(printf "%s\\nmulti-monitor\\nmanual selection" "$screens" | dmenu -i -p "Select display arangement:") &&
+ask "Select display arangement:" "$screens\\nmulti-monitor\\nmanual selection" &&
+chosen=$(ans) &&
 case "$chosen" in
 	"manual selection") arandr ; exit ;;
 	"multi-monitor") multimon ;;

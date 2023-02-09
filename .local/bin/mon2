@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# external script:
+# https://github.com/kiprasmel/voidrice/blob/master/.local/bin/displayselect
+#
+# display arrangement,
+# mirror displays?,
+# primary display,
+# "What side of $primary should $secondary be on?"
+displayselect "multi-monitor" "no" "DP-1" "right"
+
+WHICH_METAMODE="${1:-HD}"
+
+# get via:
+# nvidia-settings -q CurrentMetaMode
+# & copy after ::
+#
+# see:
+# https://wiki.archlinux.org/title/NVIDIA#Using_nvidia-settings
+#
+METAMODE_HD="DPY-1: nvidia-auto-select @1920x1080 +2560+0 {ViewPortIn=1920x1080, ViewPortOut=1920x1080+0+0}, DPY-2: 1920x1080_120 @1920x1080 +0+0 {AllowGSYNC=Off, ViewPortIn=1920x1080, ViewPortOut=1920x1080+0+0}"
+METAMODE_QHD="DPY-1: 1920x1080_120 @1920x1080 +2560+0 {ViewPortIn=1920x1080, ViewPortOut=1920x1080+0+0}, DPY-2: 2560x1440_165 @2560x1440 +0+0 {AllowGSYNC=Off, ViewPortIn=2560x1440, ViewPortOut=2560x1440+0+0}"
+
+METAMODE=
+if [ "$WHICH_METAMODE" = "HD" ]; then
+	METAMODE="$METAMODE_HD"
+elif [ "$WHICH_METAMODE" = "QHD" ]; then
+	METAMODE="$METAMODE_QHD"
+else
+	>&2 printf "\nmon2: unknown "WHICH_METAMODE": "$WHICH_METAMODE""
+	exit 1
+fi
+
+# https://wiki.archlinux.org/title/NVIDIA#Using_nvidia-settings
+sudo nvidia-settings --assign "CurrentMetaMode=$METAMODE"
+

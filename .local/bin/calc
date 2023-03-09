@@ -2,9 +2,11 @@
 
 # ifinstalled bc && echo "Welcome to the Calculator." && bc -lq 
 
-NOT_BLOAT="/tmp/pystartuplmao"
+NOT_BLOAT="/tmp/pystartuplmao.py"
 
 cat > "$NOT_BLOAT" <<EOF
+# generated via ~/.local/bin/calc
+
 import sys
 from math import *
 from itertools import *
@@ -53,6 +55,114 @@ def factors(n):
 
 def primeFactors(n):
 	return [isPrime(n), factors(n)]
+
+
+
+# begin binary numbers & their representations
+
+# need reversed string for formulas to work smoothly & correctly.
+def rev(s):
+	return s[::-1]
+
+# binary to unsigned
+#
+# b2u("1010") => 8 + 2 => 10
+#
+def b2u(x, w=None):
+	x = rev(x)
+
+	if w == None:
+		w = len(x)
+
+	assert len(x) == w, "word size does not match bit vector length."
+
+	sum = 0
+	for i in range(0, (w-1)+1):
+		sum = sum + int(x[i]) * 2**i
+	return sum
+
+# binary to two's complement
+#
+# b2t("1010") => -8 + 2 => -6
+#
+def b2t(x, w=None):
+	x = rev(x)
+	
+	if w == None:
+		w = len(x)
+	
+	assert len(x) == w, "word size does not match bit vector length."
+
+	sum = 0
+	for i in range(0, w-1):
+		sum = sum + int(x[i]) * 2**i
+
+	sum = sum - (int(x[w-1]) * 2**(w-1))
+
+	return sum
+
+# convert width of base10 number to base2
+# e.g. 10u => 0b1010 (w=4) (unsigned width to binary width)
+# e.g. -6  => 0b1010 (w=4) (signed   width to binary width)
+def bin_width(t):
+	w = 0
+	if t < 0:
+		t = abs(t) - 1
+		w = w + 1
+	
+	w = w + floor(log2(t) + 1)
+
+	return w
+
+def u2b(u, w=None):
+	if (w == None):
+		w = bin_width(u)
+
+	assert (u < (1<<w)), "width too small to fit number."
+
+	b = ""
+	for i in rev(range(0, w)):
+		if (u & (1<<i)):
+			b = b + "1"
+		else:
+			b = b + "0"
+	
+	return b
+
+# two's complement to binary. (w)idth should account for sign bit
+def t2b(t, w=None):
+	if (w == None):
+		w = bin_width(t)
+	
+	if (t < 0):
+		neg = (1<<(w-1)) # negative strength
+		pos = neg + t # the leftover positive needed to add
+		
+		b = "1" + u2b(pos, w-1)
+		return b
+	else:
+		# -1 because sign bit,
+		# +1 because bit_width does not account for it for non-negative nums.
+		b = "0" + u2b(t, w-1+1)
+		return b
+
+# sign magnitude to binary
+def s2b(s, w=None):
+	if (w == None):
+		raise "TODO"
+	
+	b = ""
+	# TODO: +0 vs -0
+	if (s < 0):
+		b = "1" + u2b(-s, w-1)
+	else:
+		b = "0" + u2b(s, w-1)
+
+	return b
+
+# end binary numbers & their representations
+
+
 
 EOF
 

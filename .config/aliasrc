@@ -14,7 +14,7 @@
 # read https://wiki.archlinux.org/index.php/Security#Editing_files_using_sudo
 
 # Use neovim for vim if present.
-[ -x "$(command -v nvim)" ] && alias vim="nvim" vimdiff="nvim -d"
+#[ -x "$(command -v nvim)" ] && alias vim="nvim" vimdiff="nvim -d"
 
 alias ka="killall" \
 	Q="cd / && $HOME/.local/bin/tools/ecryptfs-unmount && i3-msg exit" \
@@ -424,9 +424,6 @@ za() {
 postwoman() {
 	/opt/google/chrome/google-chrome --profile-directory=Default --app-id=ljencpkfbmahjfhepjlnokmmfipcbcld $*
 }
-
-
-command -v nvim >/dev/null && alias vim="nvim" vimdiff="nvim -d" # Use neovim for vim if present.
 
 # https://github.com/nvbn/thefuck
 # removed because of https://github.com/nvbn/thefuck/issues/1018

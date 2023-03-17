@@ -64,6 +64,14 @@ def primeFactors(n):
 def rev(s):
 	return s[::-1]
 
+# if binary number is shorter than the provided width,
+# we need to fill the missing parts w/ 0s.
+def padleft(x, w, log=True):
+	d = w - len(x)
+	x = ("0" * d) + x
+	if log:
+		print(f"padding left with {d} zeros. x = {x}")
+
 # binary to unsigned
 #
 # b2u("1010") => 8 + 2 => 10
@@ -73,6 +81,9 @@ def b2u(x, w=None):
 
 	if w == None:
 		w = len(x)
+
+	if w > len(x):
+		x = padleft(x, w)
 
 	assert len(x) == w, "word size does not match bit vector length."
 
@@ -90,6 +101,9 @@ def b2t(x, w=None):
 	
 	if w == None:
 		w = len(x)
+
+	if w > len(x):
+		x = padleft(x, w)
 	
 	assert len(x) == w, "word size does not match bit vector length."
 

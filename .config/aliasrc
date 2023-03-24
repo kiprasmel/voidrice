@@ -647,12 +647,12 @@ grepi() {
 }
 
 dif() {
-	/usr/bin/env diff -u "$1" "$2" | diff-so-fancy
+	/usr/bin/env diff -u $* | diff-so-fancy
 }
 
 # ignore whitespace changes
 difb() {
-	/usr/bin/env diff -u -b "$1" "$2" | diff-so-fancy
+	/usr/bin/env diff -u -b $* | diff-so-fancy
 }
 
 # toggle

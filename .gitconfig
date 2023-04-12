@@ -237,7 +237,13 @@
 	backup = !git-backup # remote script, availabe @ github.com/kiprasmel/dotfiles/.local/bin/tools/git-backup
 	behind = !git-behind # remote script, available @ github.com/kiprasmel/dotfiles/.local/bin/tools/git-behind
 	behind-remote = !git-behind-remote
-	c = commit -S -s
+
+	#c = commit -S -s
+	c = commit -S
+	# https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---signoff
+	# https://docs.github.com/en/organizations/managing-organization-settings/managing-the-commit-signoff-policy-for-your-organization
+	# ^ sus. if requires signoffs, can rebase, otherwise nopers
+
 	ca = c --amend
 	caw = c --amend --no-edit
 	cawpf = !git c --amend --no-edit && git push -f

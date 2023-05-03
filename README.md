@@ -6,8 +6,9 @@ These are the dotfiles deployed by [LARBS](https://larbs.xyz), as seen on [Luke'
 
 - Very useful scripts are in `~/.local/bin/`
 - Settings for:
-	- vim / nvim / doom emacs (text editors)
-	- zsh (shell)
+	- vim, nvim, vscode
+	- git w/ many comfy aliases & extra utils
+	- zsh, incl. fish-like autocompletions
 	- tmux (terminal multiplexer)
 	- i3wm/i3-gaps (window manager)
 	- i3blocks (status bar)
@@ -16,7 +17,12 @@ These are the dotfiles deployed by [LARBS](https://larbs.xyz), as seen on [Luke'
 	- mpd/ncmpcpp (music)
 	- sxiv (image/gif viewer)
 	- mpv (video player)
+	- calc (python calculator w/ prefilled utils)
 	- other stuff like xdg default programs, inputrc and more, etc.
+- Additionally for Mac:
+	- yabai, with a very similar feel to i3
+	- iTerm2, integrated w/ tmux!
+	- Alfred, incl. emoji picker keybind
 - We try to minimize what's directly in `$HOME` so:
 	- Most configs that can be in `~/.config/` are.
 	- Some environmental variables have been set in `~/.profile` to move configs into `~/.config/`

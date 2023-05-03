@@ -41,6 +41,7 @@ alias ka="killall" \
 	dp.="dolphin ." \
 	v="$EDITOR" \
 	sv="sudoedit" \
+	t="tmux" \
 	sdn="sudo shutdown -h now" \
 	gua="git remote | xargs -L1 git push --all" \
 	ls="LC_COLLATE=C ls -hN --color=auto --group-directories-first" \
@@ -73,7 +74,7 @@ alias ka="killall" \
 	py="python" \
 	acl="arduino-cli" \
 	ac="arduino-cli" \
-	lol="sudo sh -c 'echo \"abi.vsyscall32 = 0\" >> /etc/sysctl.conf && sysctl -p;'" \
+	lol="sudo sh -c 'sysctl -w abi.vsyscall32=0 && sysctl -p;'" \
 	ws="wifi-check" \
 	wr="wifi-restart"
 
@@ -145,6 +146,11 @@ a() {
 cr() { sudo vscodium --user-data-dir $HOME/.config/VSCodium/ --extensions-dir $HOME/.vscode-oss/extensions $* }
 vscr() { cr }
 vsr() { cr }
+
+memery() {
+	ORIG="$HOME/.local/bin/memery"
+	PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python $ORIG $*
+}
 
 # function is better than an alias
 # note - do NOT quote the '$*'!
@@ -224,6 +230,7 @@ cop() { config p $* }
 coc() { config c $* }
 cod() { config d $* }
 gso() { __gitwrap so $* }
+gsom() { __gitwrap som $* }
 gsod() { __gitwrap sod $* }
 gsoc() { __gitwrap soc $* }
 gd() { __gitwrap d $* }

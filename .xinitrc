@@ -44,7 +44,7 @@ numlockx &
 
 # https://wiki.archlinux.org/index.php/GNOME/Keyring#PAM_method
 # dbus-update-activation-environment --systemd DISPLAY
-eval $(/usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh)
+eval "$(/usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh)"
 export SSH_AUTH_SOCK
 
 #
@@ -54,7 +54,7 @@ export SSH_AUTH_SOCK
 # https://bbs.archlinux.org/viewtopic.php?id=231006
 #
 mkdir -p "$HOME"/.local/share/keyrings
-source /etc/X11/xinit/xinitrc.d/50-systemd-user.sh
+. "/etc/X11/xinit/xinitrc.d/50-systemd-user.sh"
 
 # allow `screenlockuser` to do stuff with my screen (TODO -see project "screenlock")
 xhost +SI:localuser:screenlockuser
@@ -80,5 +80,5 @@ xhost +SI:localuser:screenlockuser
 # export STATUSBAR="i3blocks"
 
 # exec /home/kipras/.xmonad/xmonad-x86_64-linux
-  exec i3
+ exec i3
 

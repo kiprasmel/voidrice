@@ -112,6 +112,7 @@
 [diff]
 	tool = default-difftool
 	algorithm = histogram
+	#colorMoved = zebra
 [difftool "default-difftool"]
 	cmd = code --wait --diff $LOCAL $REMOTE
 [filter "lfs"]
@@ -392,6 +393,8 @@
 	rmbp = rmbackup
 	rmbackup = !git-rm-backup # remote script, availabe @ dotfiles/.scripts/tools/git-rm-backup
 
+	rd = rebase-diff
+
 	rgrep = !git grep "$1" $(git rev-list --all)
 
 	s = status
@@ -404,6 +407,8 @@
 	                                                  # The value given will override values from configuration files.
 	sb = show-branch
 	so = show
+	# show commit message
+	som = show --pretty=format:"%B" -q
 	ss = show
 	sh = show HEAD
 	shc = !git show HEAD | wc
@@ -421,3 +426,14 @@
 	#y =
 	#z =
 
+[mergetool "gitmergetool"]
+	cmd = gitmergetool \"$BASE\" \"$REMOTE\" \"$LOCAL\" \"$MERGED\"
+[mergetool "diffconflicts"]
+	cmd = diffconflicts vim $BASE $LOCAL $REMOTE $MERGED
+	trustExitCode = true
+[mergetool]
+	keepBackup = false
+	prompt = false
+	trustExitCode = true
+[mergetool "fugitive"]
+	cmd = vim -f -c \"vdiffsplit!\" \"$MERGED\"

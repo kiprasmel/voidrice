@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 # ~/.xprofile
 # This file runs when a DM logs you into a graphical session.
 # If you use startx/xinit like a Chad, this file will also be sourced.
@@ -36,3 +36,4 @@ xcompmgr &		# xcompmgr for transparency
 dunst &			# dunst for notifications
 mpdupdate &
 notify-send -i "/Users/t1434/.local/share/larbs/larbs.png" "Welcome to LARBS" "Press super+F1 for the help menu." # LARBSWELCOME
+

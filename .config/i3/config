@@ -170,7 +170,8 @@ client.unfocused        #333333 #111111 #111111 #292d2e   #222222
 # #---Mouse buttons---# #
 
 # https://github.com/tsoding/boomer
-bindsym $mod+m                 exec "$HOME/forkprojects/boomer/boomer"
+# bindsym $mod+m                 exec "cd $HOME/forkprojects/boomer && ./boomer"
+bindsym $mod+m                 exec --no-startup-id "boomer"
 # bindsym --whole-window button9 exec --no-startup-id "$HOME/forkprojects/boomer/boomer"
 
 # #---Layouts---# #
@@ -305,6 +306,7 @@ bindsym $mod+Shift+g		exec --no-startup-id gimp; workspace $ws5
 
 bindsym $mod+h			focus left
 bindsym $mod+Shift+h		move left 30
+# move workspace to another monitor
 bindsym $mod+Ctrl+h		move workspace to output left
 
 bindsym $mod+j			focus down
@@ -317,6 +319,7 @@ bindsym $mod+Ctrl+k		move workspace to output up
 
 bindsym $mod+l			focus right
 bindsym $mod+Shift+l		move right 30
+# move workspace to another monitor
 bindsym $mod+Ctrl+l		move workspace to output right
 
 bindsym $mod+z			gaps outer current plus 5

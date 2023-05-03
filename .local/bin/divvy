@@ -29,7 +29,7 @@ const FILE_STDIN = "-"
  * or, with -x/--exec
  *
  * '''sh
- * ls -1 | divvy 2 -x "diff %* ||:"
+ * ls -2 | divvy 2 -x "diff %* ||:"
  * '''
  *
  * the only magic in the exec above is "%*",

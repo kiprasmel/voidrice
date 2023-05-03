@@ -11,7 +11,7 @@ tt  ~/time-track
 pr  ~/private
 pp	~/projects
 te  ~/projects/server-party
-pw 	~/projects/personal-website
+we 	~/projects/website
 sm  ~/projects/sourcemod
 cpa  ~/projects/cputils
 fp 	~/forkprojects
@@ -56,7 +56,6 @@ b   ~/projects/biz
 bz  ~/projects/biz
 biz ~/projects/biz
 nn 	~/projects/neural-nets-from-scratch
-re	~/projects/lilreddit
 pic	~/Pictures
 # sa ~/screenshots
 vv  ${XDG_VIDEOS_DIR:-$HOME/Videos}
@@ -90,3 +89,4 @@ notes ~/projects/notes-private
 not ~/projects/roam-traverse-graph/plugin-export-public-pages
 
 lds ~/projects/local-dev-server
+dg ~/projects/depgraph

@@ -156,6 +156,9 @@ Plug 'hrsh7th/vim-vsnip'
 " https://github.com/romgrk/barbar.nvim
 " https://github.com/romgrk/winteract.vim
 
+" diffs, 3-way merges, etc
+Plug 'https://github.com/whiteinge/diffconflicts'
+
 call plug#end()
 
 " onedark.vim override: Don't set a background color when running in a terminal;

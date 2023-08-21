@@ -1,15 +1,20 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # requires https://github.com/nonpop/xkblayout-state
 
+kb="$(xkblayout-state print "%s")" || exit 1
+
 case $BLOCK_BUTTON in
 	1)
-		notify-send "todo" "TODO: implement switching"
+		xkblayout-state set +1
+		kb="$(xkblayout-state print "%s")"
+		# wait till reading is done before refreshing, otherwise won't be up-to-date
+		pkill -RTMIN+30 "${STATUSBAR:-dwmblocks}"
 		;;
 	3)
-		notify-send "keyboard-layout" "Current keyboard layout"
+		notify-send "keyboard-layout" "Current keyboard layout. Left-click to cycle thru layouts, defined in the 'remaps' script."
 		;;
 esac
 
-echo `xkblayout-state print "%s"`
+echo "$kb"
 

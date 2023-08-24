@@ -118,8 +118,10 @@ def b2t(x, w=None):
 # convert width of base10 number to base2
 # e.g. 10u => 0b1010 (w=4) (unsigned width to binary width)
 # e.g. -6  => 0b1010 (w=4) (signed   width to binary width)
-def bin_width(t):
+def bin_width(t, is_signed=False):
 	w = 0
+	if t > 0 and is_signed:
+		w = w + 1
 	if t < 0:
 		t = abs(t) - 1
 		w = w + 1
@@ -130,7 +132,7 @@ def bin_width(t):
 
 def u2b(u, w=None):
 	if (w == None):
-		w = bin_width(u)
+		w = bin_width(u, is_signed=False)
 
 	assert (u < (1<<w)), "width too small to fit number."
 
@@ -146,19 +148,34 @@ def u2b(u, w=None):
 # two's complement to binary. (w)idth should account for sign bit
 def t2b(t, w=None):
 	if (w == None):
-		w = bin_width(t)
+		w = bin_width(t, is_signed=True)
 	
 	if (t < 0):
+		assert (t > -(1<<(w-1))-1), "width too small to fit number."
+
 		neg = (1<<(w-1)) # negative strength
 		pos = neg + t # the leftover positive needed to add
 		
 		b = "1" + u2b(pos, w-1)
 		return b
 	else:
+		assert (t < (1<<(w-1))), "width too small to fit number."
+
 		# -1 because sign bit,
 		# +1 because bit_width does not account for it for non-negative nums.
-		b = "0" + u2b(t, w-1+1)
+		#b = "0" + u2b(t, w-1+1)
+
+		# got rid of the previous "0" prefix,
+		# because added the assertion to force the number to fit,
+		# thus works out automatically.
+		b =        u2b(t, w-1+1)
 		return b
+
+def u2t(u, w=None):
+	return b2t(u2b(u, w), w)
+
+def t2u(t, w=None):
+	return b2u(t2b(t, w), w)
 
 # sign magnitude to binary
 def s2b(s, w=None):

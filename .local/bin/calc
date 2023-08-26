@@ -64,11 +64,11 @@ def primeFactors(n):
 def rev(s):
 	return s[::-1]
 
-def padleft(x, w, padder="0", log=True):
+def padleft(x, w, padder="0", log=False):
 	d = w - len(x)
 	x = (padder * d) + x
 	if log:
-		print(f"padding left with {d} zeros. x = {x}")
+		print(f"padding left with {d} elements of value {padder}. x = {x}")
 	return x
 
 # binary to unsigned
@@ -182,29 +182,107 @@ def t2u(t, w=None):
 # TODO: make part of t2b: rename t2b to t2b_samelen, create t2b_trim_extend, and create t2b to outsource to either.
 def t2t(t, w1, w2):
 	delta = w2 - w1
+	print(f"delta {delta}")
 	if (delta < 0):
-		# trim
-		b = t2b(t, w1)
-		blen = len(b)
-
-		print(f"b before: {b} len: {blen} delta: {delta}")
-		
-		# keep only w2 bits (least significant - right to left)
-		b = b[-w2:]
-		blen = len(b)
-
-		print(f"b after: {str(b)} len: {blen}")
-
-		# convert the w2 bits into the two's complement representation.
-		# if the w2 bit (the new most significant bit / sign bit) is 1,
-		# then the result will be negative, irrespective of the previous sign bit.
-		return b2t(b, w2)
+		return t_trim(t, w1, w2)
 	elif (delta > 0):
-		# extend
-		raise "TODO"
+		return t_ext(t, w1, w2)
 	else:
 		print("nothing to do since w1 == w2")
 		return t
+
+def u2u(u, w1, w2):
+	delta = w2 - w1
+	print(f"delta {delta}")
+	if (delta < 0):
+		return u_trim(u, w1, w2)
+	elif (delta > 0):
+		return u_ext(u, w1, w2)
+	else:
+		print("nothing to do since w1 == w2")
+		return u
+
+# trim/truncate
+def t_trim(t, w1, w2, to_bits=t2b, from_bits=b2t):
+	if w1 == w2:
+		print("w1 == w2, nothing to do")
+		return t
+	assert w1 > w2, "cannot trim from smaller to bigger"
+
+	b0 = to_bits(t, w1)
+
+	# keep only w2 bits (least significant - right to left)
+	b = b0[-w2:]
+
+	print(format_before_after(b0, b, pre="bits ", join="\n"))
+
+	# convert the w2 bits into the two's complement representation.
+	# if the w2 bit (the new most significant bit / sign bit) is 1,
+	# then the result will be negative, irrespective of the previous sign bit.
+	return from_bits(b, w2)
+
+t_trunc = t_trim
+
+def u_trim(u, w1, w2):
+	return t_trim(u, w1, w2, to_bits=u2b, from_bits=b2u)
+
+u_trunc = u_trim
+
+# extend
+def t_ext(t, w1, w2):
+	if w1 == w2:
+		print("w1 == w2, nothing to do")
+		return t
+	assert w2 > w1, "cannot extend from bigger to smaller"
+
+	b0 = t2b(t, w1)
+
+	# most significant bit is at pos 0, since we didn't reverse
+	# TODO: consistency w/ reversing or not reversing at all.
+	orig_sign_bit = b0[0]
+
+	print(f"orig_sign_bit: {orig_sign_bit}")
+
+	# extend w2-w1 bits with the same value as orig_sign_bit.
+	b = padleft(b0, w2, orig_sign_bit)
+
+	print(format_before_after(b0, b, pre="bits ", join="\n"))
+
+	# re-interpret as two's complement
+	return b2t(b, w2)
+
+def u_ext(u, w1, w2):
+	if w1 == w2:
+		print("w1 == w2, nothing to do")
+		return u
+	assert w2 > w1, "cannot extend from bigger to smaller"
+
+	b0 = u2b(u, w1)
+
+	b = padleft(b0, w2, "0")
+
+	print(format_before_after(b0, b, pre="bits ", join="\n"))
+
+	return b2u(b, w2)
+
+def format_before_after(before, after, fill=" ", pre="", post="", join=None):
+	b_len = len(before)
+	a_len = len(after)
+	max_len = max(b_len, a_len)
+
+	b_delta = max_len - b_len
+	a_delta = max_len - a_len
+
+	before = (fill * b_delta) + before
+	after =  (fill * a_delta) + after
+
+	b = pre + "before: " + before + "  len: " + str(b_len) + post
+	a = pre + "after:  " + after  + "  len: " + str(a_len) + post
+	ret = [b, a]
+	if join is None:
+		return ret
+	else:
+		return join.join(ret)
 
 # sign magnitude to binary
 def s2b(s, w=None):

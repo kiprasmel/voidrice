@@ -64,13 +64,12 @@ def primeFactors(n):
 def rev(s):
 	return s[::-1]
 
-# if binary number is shorter than the provided width,
-# we need to fill the missing parts w/ 0s.
-def padleft(x, w, log=True):
+def padleft(x, w, padder="0", log=True):
 	d = w - len(x)
-	x = ("0" * d) + x
+	x = (padder * d) + x
 	if log:
 		print(f"padding left with {d} zeros. x = {x}")
+	return x
 
 # binary to unsigned
 #
@@ -83,7 +82,8 @@ def b2u(x, w=None):
 		w = len(x)
 
 	if w > len(x):
-		x = padleft(x, w)
+		# x = padleft(x, w)
+		raise "TODO: this should be implemented as number extension"
 
 	assert len(x) == w, "word size does not match bit vector length."
 
@@ -103,7 +103,8 @@ def b2t(x, w=None):
 		w = len(x)
 
 	if w > len(x):
-		x = padleft(x, w)
+		# x = padleft(x, w)
+		raise "TODO: this should be implemented as number extension"
 	
 	assert len(x) == w, "word size does not match bit vector length."
 
@@ -176,6 +177,34 @@ def u2t(u, w=None):
 
 def t2u(t, w=None):
 	return b2u(t2b(t, w), w)
+
+# two's complement to two's complement, but trimmed or extended
+# TODO: make part of t2b: rename t2b to t2b_samelen, create t2b_trim_extend, and create t2b to outsource to either.
+def t2t(t, w1, w2):
+	delta = w2 - w1
+	if (delta < 0):
+		# trim
+		b = t2b(t, w1)
+		blen = len(b)
+
+		print(f"b before: {b} len: {blen} delta: {delta}")
+		
+		# keep only w2 bits (least significant - right to left)
+		b = b[-w2:]
+		blen = len(b)
+
+		print(f"b after: {str(b)} len: {blen}")
+
+		# convert the w2 bits into the two's complement representation.
+		# if the w2 bit (the new most significant bit / sign bit) is 1,
+		# then the result will be negative, irrespective of the previous sign bit.
+		return b2t(b, w2)
+	elif (delta > 0):
+		# extend
+		raise "TODO"
+	else:
+		print("nothing to do since w1 == w2")
+		return t
 
 # sign magnitude to binary
 def s2b(s, w=None):

@@ -389,6 +389,7 @@ set completefunc=emoji#complete
 
 " Compile document, be it groff/LaTeX/markdown/etc.
 	map <leader>c :w! \| !compiler "<c-r>%"<CR>
+	map <leader>b :w! \| !yarn build "<c-r>%"<CR>
 
 	autocmd FileType cpp noremap <leader>p :w! \| !cputils-run -a "-DEVAL" - <c-r>%<CR>
 	autocmd FileType cpp noremap <M-p>     :w! \| !cputils-run -a "-DEVAL" - <c-r>%<CR>
@@ -438,7 +439,7 @@ set completefunc=emoji#complete
 
 
 " When shortcut files are updated, renew bash and ranger configs with new material:
-	autocmd BufWritePost files,directories !shortcuts
+	autocmd BufWritePost files,directories !~/.local/bin/shortcuts
 
 " Update binds when sxhkdrc is updated.
 	autocmd BufWritePost *sxhkdrc !pkill -USR1 sxhkd

@@ -80,7 +80,7 @@
 #	#layout = "LOCAL,BASE,REMOTE / MERGED"
 
 [stackedrebase]
-	autoApplyIfNeeded = true
+	#autoApplyIfNeeded = true
 	#autoApplyIfNeeded = false
 [rebase]
 	missingCommitsCheck = warn
@@ -113,6 +113,10 @@
 	tool = default-difftool
 	algorithm = histogram
 	#colorMoved = zebra
+	
+	# TODO: https://matklad.github.io/2023/12/31/git-things.html#Git-Things
+	#colormoved = " default"
+	#colormovedws = "allow-indentation-change"
 [difftool "default-difftool"]
 	cmd = code --wait --diff $LOCAL $REMOTE
 [filter "lfs"]
@@ -183,14 +187,14 @@
 	agct     = !git add               .  && git c -m "TEMP" --no-verify # --no-verify to ignore husky's hooks 
 
 	# see "cf"
-	adcf     = "!git add ${GIT_PREFIX:-.} && git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $1\" #"
-	agcf     = "!git add               .  && git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $1\" #"
+	adcf     = "!git add ${GIT_PREFIX:-.} && git cf $* #"
+	agcf     = "!git add               .  && git cf $* #"
 
-	adcfr     = "!git add ${GIT_PREFIX:-.} && git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $1\" && git rebase -i "$1~" #"
-	agcfr     = "!git add               .  && git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $1\" && git rebase -i "$1~" #"
+	adcfr     = "!git add ${GIT_PREFIX:-.} && git cf \"$1\" && git rebase -i \"$(git fixup-target)~\" #"
+	agcfr     = "!git add               .  && git cf \"$1\" && git rebase -i \"$(git fixup-target)~\" #"
 
-	adcfrw     = "!git add ${GIT_PREFIX:-.} && git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $1\" && EDITOR=true git rebase -i "$1~" #"
-	agcfrw     = "!git add               .  && git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $1\" && EDITOR=true git rebase -i "$1~" #"
+	adcfrw     = "!git add ${GIT_PREFIX:-.} && git cf \"$1\" && EDITOR=true git rebase -i \"$(git fixup-target)~\" #"
+	agcfrw     = "!git add               .  && git cf \"$1\" && EDITOR=true git rebase -i \"$(git fixup-target)~\" #"
 
 	adctpf   = !git add ${GIT_PREFIX:-.} && git c -m "TEMP" --no-verify && git push -f --no-verify # --no-verify to ignore husky's hooks 
 	agctpf   = !git add               .  && git c -m "TEMP" --no-verify && git push -f --no-verify # --no-verify to ignore husky's hooks 
@@ -249,8 +253,16 @@
 	caw = c --amend --no-edit
 	cawpf = !git c --amend --no-edit && git push -f
 	cawpfn = !git c --amend --no-edit && git push -f --no-verify # --no-verify to ignore husky's hooks
-	ct = c -m "TEMP"
-	cf = "!git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $1\" #" # https://stackoverflow.com/a/39523506/9285308
+	#ct = c -m "TEMP"
+	ctt = "commit-msg TEMP"
+	ct = "commit-msg" # ~/.local/bin. used to be a bad habbit, now asks for at least some commit msg
+	cm = "commit-msg"
+	# print info of the target fixup commit & create a new commit that fixes up the target.
+	cf = "!git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $(git rev-parse \"$1\")\" #" # https://stackoverflow.com/a/39523506/9285308
+	cfr = "!git cf \"$1\" && git fr"
+	fr = "!git stash -u && git rebase -i \"$(git fixup-target)~\" && git stash pop #"
+	# parse out the fixup target from the now-committed "fixup! <committish>" commit's message.
+	fixup-target = "!git show \"@\" --pretty='format:%s' -q | cut -d' ' -f2"
 	cg = cgg
 	cgg = "!curl -sL http://whatthecommit.com/index.txt | git commit -F-"
 	gg = cgg
@@ -297,7 +309,7 @@
 	hg = lg --follow
 	hop = !git-hop # https://github.com/kiprasmel/voidrice/blob/master/.local/bin/git-hop
 	#i =
-	#j =
+	j = jump # https://github.com/mykolaharmash/git-jump
 	#k =
 
 	# man git-log
@@ -382,6 +394,8 @@
 	# https://github.com/kiprasmel/git-rebase-diff
 	rd = rebase-diff
 
+	rew = find-rewritten # https://github.com/kiprasmel/git-find-rewritten
+
 	# stacked diffs in git
 	#
 	# https://github.com/kiprasmel/git-stacked-rebase
@@ -407,6 +421,7 @@
 	                                                  # The value given will override values from configuration files.
 	sb = show-branch
 	so = show
+	sos = show --stat
 	# show commit message
 	som = show --pretty=format:"%B" -q
 	ss = show

@@ -16,9 +16,10 @@ sm  ~/projects/sourcemod
 cpa  ~/projects/cputils
 fp 	~/forkprojects
 lp	~/learnprojects
+dp  ~/demoprojects
 css ~/learnprojects/css-suck-less
-lax ~/learnprojects/latex
-res  ~/learnprojects/latex/resume
+lax ~/projects/latex
+res  ~/projects/latex/resume
 rgl  ~/projects/refined-gitlab
 el  ~/learnprojects/every-layout
 #dsa ~/learnprojects/dsa
@@ -40,7 +41,7 @@ oss ~/oss
 prp ~/privateprojects
 pri ~/privateprojects/interactio
 prip ~/privateprojects/interactio/panel
-sw ~/privateprojects/sioko-cpp/
+#sw ~/privateprojects/sioko-cpp/
 sn ~/projects/snitch-latest-car
 tt	~/projects/turbo-schedule
 rtg	~/projects/roam-traverse-graph
@@ -90,3 +91,13 @@ not ~/projects/roam-traverse-graph/plugin-export-public-pages
 
 lds ~/projects/local-dev-server
 dg ~/projects/depgraph
+
+# books
+csa ~/private/books/csapp
+csap ~/private/books/csapp
+csapp ~/private/books/csapp
+cs ~/csapp
+
+s ~/school
+sw ~/school/web
+

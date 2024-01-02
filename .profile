@@ -293,10 +293,11 @@ case "$OSTYPE" in
 	  
 		# see https://stackoverflow.com/a/57973942/9285308
 		# make GNU commands available
-		export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+		export PATH="$HOMEBREW_PREFIX/opt/coreutils/libexec/gnubin:$PATH"
 		export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:$MANPATH"
 
-		export PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
+		# more gnu commands
+		export PATH="$HOMEBREW_PREFIX/opt/gnu-sed/libexec/gnubin:$PATH"
 
 		# brew install gnu-time
 		# gtime -> just "time"

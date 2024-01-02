@@ -37,7 +37,6 @@ alias ka="killall" \
 	compass="mongodb-compass" \
 	h="grep -Hr" \
 	trem="transmission-remote" \
-	dp="dolphin" \
 	dp.="dolphin ." \
 	v="$EDITOR" \
 	sv="sudoedit" \
@@ -230,6 +229,7 @@ cop() { config p $* }
 coc() { config c $* }
 cod() { config d $* }
 gso() { __gitwrap so $* }
+gsos() { __gitwrap sos $* }
 gsom() { __gitwrap som $* }
 gsod() { __gitwrap sod $* }
 gsoc() { __gitwrap soc $* }
@@ -240,7 +240,7 @@ gg() { __gitwrap s $* }
 ggg() { __gitwrap s $* }
 gggg() { __gitwrap s $* }
 ggggg() { __gitwrap s $* }
-s() { __gitwrap s $* }
+#s() { __gitwrap s $* }
 gcl() { __gitwrap cl $* }
 gp() { __gitwrap p $* }
 gpf() { __gitwrap pf $* }
@@ -336,7 +336,11 @@ gbp() { __gitwrap bp $* }
 gss() { __gitwrap ss $* }
 gsh() { __gitwrap sh $* }
 gct() { __gitwrap ct $* }
+gctt() { __gitwrap ctt $* }
+gcm() { __gitwrap cm $* }
 gcf() { __gitwrap cf $* }
+gcfr() { __gitwrap cfr $* }
+gfr() { __gitwrap fr $* }
 gcg() { __gitwrap cg $* }
 gcgg() { __gitwrap cgg $* }
 ggg() { __gitwrap gg $* }
@@ -358,6 +362,8 @@ e()  { __gitwrap e $* }
 gmake() { ge make $* }
 # gg() { gmake $* }
 ggs() { gmake test $* }
+
+gj() { __gitwrap j $* }
 
 # git done.
 
@@ -421,6 +427,10 @@ alias fo="setsid -f >/dev/null 2>&1 "
 
 forkq() {
 	fork $* && exit
+}
+
+eq() {
+	echo $?
 }
 
 za() {
@@ -571,23 +581,29 @@ kwsupd() {
 shredrn() {
 	N="$1"
 	shift
-	DIR="$1"
-	shift
-	[ -z "$DIR" ] && {
-		printf "shredrn N DIR\n"
-		return 1
-	}
-	! [ -d "$DIR" ] && {
-		[ -f "$DIR" ] && {
-			shred -zxfun${N} "$DIR"
-			return 0
+	[ -z $1 ] && return 1
+	while (( $# > 0 )); do
+		DIR="$1"
+		shift
+		[ -z "$DIR" ] && {
+			printf "shredrn N DIR...\n"
+			continue
+			#return 1
 		}
+		! [ -d "$DIR" ] && {
+			[ -f "$DIR" ] && {
+				shred -zxfun${N} "$DIR"
+				continue
+				#return 0
+			}
 
-		printf "DIR doesn't exist! (got \"$DIR\")\n"
-		return 1
-	}
-	find "$DIR" -type f -exec shred -zxfun${N} $* {} \;
-	rm -rf -v "$DIR"
+			>&2 printf "DIR doesn't exist! (got \"$DIR\")\n"
+			continue
+			#return 1
+		}
+		find "$DIR" -type f -exec shred -zxfun${N} $* {} \;
+		rm -rf -v "$DIR"
+	done
 }
 
 shredr() {
@@ -695,6 +711,7 @@ off() {
 	ext="$(get_extension "$pa")"
 
 	if [ -f "$pa.off" ] || [ -d "$pa.off" ] || [ "$ext" = "off" ]; then
+		# TODO: handle if exists without .off too
 		printf "already off. enable? [Y/n] "
 		read -r ans
 
@@ -716,3 +733,56 @@ off() {
 
 	return 0
 }
+
+fps() {
+	ffprobe -v 0 -of csv=p=0 -select_streams v:0 -show_entries stream=r_frame_rate $*
+}
+
+# ffmpeg: trim/cut out part of video
+# https://stackoverflow.com/a/70807587/9285308
+ff_trim_out() {
+	FILE="$1"
+	START="$2"
+	END="$3"
+
+	OUTDIR="$(mktemp -d)"
+	mkdir -p "$OUTDIR"
+
+	ffmpeg -i "$FILE" -t "$START" -c copy "$OUTDIR"/part1.mp4
+	ffmpeg -i "$FILE" -ss "$END" -c copy "$OUTDIR"/part2.mp4
+
+	FILELIST="$OUTDIR/list.txt"
+	ls "$OUTDIR" | while read f; do printf "file '$f'\n" >> "$FILELIST"; done
+
+	wait
+	
+	OUTFILE="$OUTDIR/trimmed.mp4"
+	ffmpeg -f concat -i "$FILELIST" -c copy "$OUTFILE";
+
+	printf "\n$OUTFILE\n\n"
+}
+
+ff_merge() {
+	OUTFILE="$1"
+	shift
+
+	FILES="$*"
+
+	OUTDIR="$(mktemp -d)"
+	mkdir -p "$OUTDIR"
+
+	FILELIST="$OUTDIR/filelist.txt"
+	printf "" > "$FILELIST"
+	while test $# -gt 0; do
+		file="$(realpath "$1")"
+		shift
+		printf "file '$file'\n" >> "$FILELIST"
+	done
+
+	echo "FILELIST $FILELIST"
+	
+	ffmpeg -f concat -safe 0 -i "$FILELIST" -c copy "$OUTFILE"
+
+	printf "\n$OUTFILE\n\n"
+}
+

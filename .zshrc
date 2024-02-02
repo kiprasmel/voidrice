@@ -16,6 +16,9 @@ case "$OSTYPE" in
 		for d in ${HOMEBREW_PREFIX}/opt/*/libexec/gnuman; do
 			export MANPATH="$d:$MANPATH"
 		done
+
+		# higher precedence
+		export PATH="$HOMEBREW_PREFIX/bin:$PATH"
 		;;
 	*)
 		;;

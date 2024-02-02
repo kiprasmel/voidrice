@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cputils.config.bash
 
-export CPP_COMPILER_DEFAULT_ARGS="-std=c++17 -g -Wall"
+export CPP_COMPILER_DEFAULT_ARGS="-std=c++20 -g -Wall"
 export INPUT_CACHE_FILE_EXTENSION="cpp.txt"
 export HIDE_EXAMPLES=1
 
@@ -11,9 +11,9 @@ create_output_file_name() {
 
 	# printf "a"
 	# printf "a.out"
-	# printf "$FILENAME_EXTLESS"
+	printf "$FILENAME_EXTLESS"
 	# printf "$FILENAME_EXTLESS.out"
-	printf "$FILENAME_EXTLESS.$EXT.out"
+	# printf "$FILENAME_EXTLESS.$EXT.out"
 }
 export -f create_output_file_name
 
@@ -82,7 +82,8 @@ strip_whitespace_and_comments() {
 # used to check if a source file
 # should be recompiled or not
 create_hash() {
-	# return 1  # comment out this line to enable and choose the appropriate method
+	# disable on macos since -fpreprocessed on M1 doesn't work?
+	return 1  # comment out this line to enable and choose the appropriate method
 
 	if [ -z "$1" ]; then
 		# stdin

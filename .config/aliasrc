@@ -30,6 +30,9 @@ alias ka="killall" \
 	cl="clipboard" \
 	d="docker" \
 	hogs-docker='docker stats --format "table {{.CPUPerc}}\t{{.Name}}" --no-stream | grep -v "CPU\|0.00" | sort -nr | head -n 10' \
+	alp="alpine" \
+	mp="multipass" \
+	vm="multipass" \
 	r="ranger" \
 	k="kubectl" \
 	m="minikube" \
@@ -531,7 +534,10 @@ faketty() {
 }
 
 xo() {
-	xdg-open $*
+	case "$OSTYPE" in
+		darwin*) open $* ;;
+			  *) xdg-open $* ;;
+	esac
 }
 
 xn() { cputils-new $* }

@@ -362,6 +362,7 @@ export PATH="$PNPM_HOME:$PATH"
 # pnpm end
 
 [ -f ~/yarn-completion.bash ] && . ~/yarn-completion.bash
+[ -f "$HOME/.local/share/cargo/env" ] && . "$HOME/.local/share/cargo/env"
 
 case "$OSTYPE" in
   solaris*) ;;

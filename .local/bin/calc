@@ -16,6 +16,7 @@ sys.ps1 = "λ "
 
 # combinations
 choose = comb
+# choose(n, k) = factorial(n) // (factorial(k) * factorial(n-k))
 
 # variations / arrangements / k-permutations 
 # https://en.wikipedia.org/wiki/Permutation#k-permutations_of_n

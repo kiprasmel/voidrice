@@ -5,7 +5,7 @@ sleepTime=1
 
 numberOfTries=0
 
-DOMAIN="${1:-kipras.org}"
+DOMAIN="${1:-google.com}"
 
 until (ping -c1 "$DOMAIN"); do sleep $sleepTime; numberOfTries=$((numberOfTries + 1)); done
 

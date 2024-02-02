@@ -77,6 +77,8 @@ alias ka="killall" \
 	ws="wifi-check" \
 	wr="wifi-restart"
 
+which python >/dev/null 2>&1 || alias python="python3"
+
 # Verbosity and settings that you pretty much just always are going to want.
 alias \
 	batt="cat /sys/class/power_supply/BAT?/capacity" \

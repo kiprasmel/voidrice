@@ -8,6 +8,14 @@ if ! filereadable(system('echo -n "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/autolo
 	autocmd VimEnter * PlugInstall
 endif
 
+" faster init
+"
+" :h feature-list
+"
+if has("mac")
+	let g:python3_host_prog= "/opt/homebrew/bin/python3"
+endif
+
 call plug#begin(system('echo -n "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/plugged"'))
 Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-fugitive'

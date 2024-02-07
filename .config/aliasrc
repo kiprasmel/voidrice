@@ -45,7 +45,6 @@ alias ka="killall" \
 	sv="sudoedit" \
 	t="tmux" \
 	sdn="sudo shutdown -h now" \
-	gua="git remote | xargs -L1 git push --all" \
 	ls="LC_COLLATE=C ls -hN --color=auto --group-directories-first" \
 	la="ls -lAFs" \
 	ll="ls -l --all --size --group-directories-first --human-readable --classify --color=auto" \
@@ -156,7 +155,8 @@ memery() {
 	PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python $ORIG $*
 }
 
-# function is better than an alias
+# wrap git cmd with extras
+#
 # note - do NOT quote the '$*'!
 # (allows better auto-completions & compatibility etc)
 # see https://github.com/tj/git-extras/issues/797
@@ -168,11 +168,11 @@ __gitwrap() {
 	[ -n "$GPG_SIGNING_KEY" ] && local EXTRA_ARGS=("-c" "user.signingkey=$GPG_SIGNING_KEY")
 
 	local GIT_CLI
-	if command -v hub >/dev/null; then
-		GIT_CLI=("/usr/bin/env" "hub")
-	else
+	#if command -v hub >/dev/null; then
+	#	GIT_CLI=("/usr/bin/env" "hub")
+	#else
 		GIT_CLI=("/usr/bin/env" "git")
-	fi
+	#fi
 
 	[ -n "$SHOW_GIT_CMD" ] && echo \
 	"${GIT_CLI[@]} ${EXTRA_ARGS[@]} $* \n"
@@ -184,7 +184,6 @@ git() {
 	__gitwrap $*
 }
 compdef git="git"
-#compdef git="hub"
 
 g() {
 	__gitwrap $*
@@ -228,6 +227,11 @@ cg() {
 }
 
 # calls aliases. See https://github.com/sarpik/voidrice/blob/master/.gitconfig
+#
+# could auto-generate this with
+#   git config -l | grep "^alias" | sed "s/alias\.//; s/=.*//;" | awk "{ printf(\"g%s() { __gitwrap %s \$* }\n\", \$1, \$1) }"
+# but at this point why bother
+#
 gs() { __gitwrap s $* }
 cos() { config s $* }
 cop() { config p $* }

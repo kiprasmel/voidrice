@@ -266,7 +266,8 @@
 	cg = cgg
 	cgg = "!curl -sL http://whatthecommit.com/index.txt | git commit -F-"
 	gg = cgg
-	cl = clone
+	#cl = clone
+	cl = "!git clone $* || hub clone $*"
 	co = checkout
 	cob = checkout -b
 	#co = !git stash -u && git checkout

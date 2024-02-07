@@ -278,6 +278,9 @@ endif
 let g:terminal_key="<M-`>"
 let g:terminal_height=20
 
+" work-around: iterm sends ",§" in preferences -> keys -> keybindings
+nmap <leader>§ <M-`>
+tmap <leader>§ <M-`>
 
 " https://github.com/junegunn/vim-emoji#emoji-completion
 set completefunc=emoji#complete
@@ -461,7 +464,7 @@ set completefunc=emoji#complete
 " Save file as sudo on files that require root permission
 	cnoremap w!! execute 'silent! write !sudo tee % >/dev/null' <bar> edit!
 
-	nmap <leader>t :TagbarToggle<CR>
+	"nmap <leader>t :TagbarToggle<CR>
 
 """ I haven't used these, Luke does though - maybe one day:D
 

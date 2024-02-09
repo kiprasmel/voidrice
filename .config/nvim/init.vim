@@ -17,16 +17,16 @@ if has("mac")
 endif
 
 call plug#begin(system('echo -n "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/plugged"'))
-Plug 'https://github.com/tpope/vim-rsi'
-Plug 'https://github.com/tpope/vim-fugitive'
+"Plug 'https://github.com/tpope/vim-rsi'
+"Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'tpope/vim-surround'
-Plug 'preservim/nerdtree'
-Plug 'PotatoesMaster/i3-vim-syntax'
-Plug 'jreybert/vimagit'
-Plug 'lukesmithxyz/vimling'
+Plug 'preservim/nerdtree', { 'on': 'NERDTreeToggle' }
+Plug 'https://github.com/mboughaba/i3config.vim'
+"Plug 'jreybert/vimagit'
+"Plug 'lukesmithxyz/vimling'
 Plug 'vimwiki/vimwiki'
 Plug 'vim-airline/vim-airline'
-Plug 'https://github.com/chrisbra/csv.vim' " extension for vim-airline to show current column for csv files
+Plug 'https://github.com/chrisbra/csv.vim', { 'for': 'csv' } " extension for vim-airline to show current column for csv files
 Plug 'tpope/vim-commentary'
 " autocompletion. the `--all` flag might be used to install all support. more info @ https://valloric.github.io/YouCompleteMe/#installation
 " https://github.com/Valloric/YouCompleteMe/
@@ -48,52 +48,44 @@ Plug 'tpope/vim-commentary'
 "Plug 'https://github.com/neoclide/coc.nvim', {'branch': 'release'}
 "Plug 'https://github.com/jackguo380/vim-lsp-cxx-highlight'
 
-Plug 'https://github.com/rdnetto/YCM-Generator', { 'branch': 'stable'} " 
-Plug 'https://github.com/jalvesaq/nvim-r.git'
-Plug 'editorconfig/editorconfig-vim'
-Plug 'wakatime/vim-wakatime'
+"Plug 'https://github.com/rdnetto/YCM-Generator', { 'branch': 'stable'} "  
+"Plug 'https://github.com/jalvesaq/nvim-r.git'
+"Plug 'editorconfig/editorconfig-vim'
+"Plug 'wakatime/vim-wakatime'
+
+Plug 'https://github.com/tpope/vim-repeat'
 
 Plug 'https://github.com/vim-scripts/ingo-library'
-Plug 'https://github.com/tpope/vim-repeat'
-Plug 'https://github.com/vim-scripts/JumpToLastOccurrence'
-
-Plug 'https://github.com/tpope/vim-abolish'
-Plug 'vifm/vifm.vim'
-Plug 'kovetskiy/sxhkd-vim'
-
-Plug 'junegunn/vim-emoji' " https://github.com/junegunn/vim-emoji
+Plug 'https://github.com/vim-scripts/JumpToLastOccurrence' " ,f<char> to jump to last char, etc
 
 Plug 'https://github.com/xuhdev/vim-latex-live-preview', { 'for': 'tex' } " :LLPStartPreview
-
 Plug 'https://github.com/lervag/vimtex'
 
-Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
-Plug 'junegunn/fzf.vim'
+"Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+"Plug 'junegunn/fzf.vim'
 
-Plug 'https://github.com/mogelbrod/vim-jsonpath'
 Plug 'https://github.com/preservim/tagbar'
 Plug 'https://github.com/rust-lang/rust.vim'
 Plug 'https://github.com/rstacruz/vim-closer'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/stevearc/vim-arduino'
-Plug 'https://github.com/luochen1990/rainbow'
-Plug 'https://github.com/jpalardy/vim-slime'
+"Plug 'https://github.com/luochen1990/rainbow'
+"Plug 'https://github.com/jpalardy/vim-slime'
 " Plug 'https://github.com/numirias/semshi', {'do': ':UpdateRemotePlugins'}
-Plug 'https://github.com/liuchengxu/vista.vim'
+"Plug 'https://github.com/liuchengxu/vista.vim'
 Plug 'https://github.com/sheerun/vim-polyglot'
 " Plug 'https://github.com/matze/vim-move' " custom defines instead
 Plug 'https://github.com/skywind3000/asyncrun.vim'
 Plug 'https://github.com/skywind3000/vim-terminal-help'
-Plug 'https://github.com/kassio/neoterm'
+"Plug 'https://github.com/kassio/neoterm'
 Plug 'https://github.com/sakhnik/nvim-gdb', { 'do': ':!./install.sh' }
 Plug 'https://github.com/tommcdo/vim-exchange'
-Plug 'https://github.com/mkitt/tabline.vim' " tabs
+"Plug 'https://github.com/mkitt/tabline.vim' " tabs
 Plug 'https://github.com/christoomey/vim-tmux-navigator'
 Plug 'https://github.com/machakann/vim-sandwich'
 Plug 'https://github.com/wellle/tmux-complete.vim'
 Plug 'https://github.com/liuchengxu/vim-which-key', { 'on': ['WhichKey', 'WhichKey!'] }
 Plug 'https://github.com/nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'} 
-Plug 'https://github.com/simnalamburt/vim-mundo'
 " color display like #0FFFFF & hsl(120, 100%, 50%)
 Plug 'https://github.com/RRethy/vim-hexokinase', { 'do': 'make hexokinase' }
 " Plug 'https://github.com/justinmk/vim-sneak'
@@ -121,42 +113,20 @@ Plug 'chemzqm/vim-jsx-improve'
 Plug 'leafgarland/typescript-vim'
 Plug 'peitalin/vim-jsx-typescript'
 
-Plug 'https://github.com/aliou/bats.vim'
+" Plug 'https://github.com/aliou/bats.vim'
 
 " telescope
 Plug 'nvim-lua/popup.nvim'
 Plug 'nvim-lua/plenary.nvim'
 Plug 'nvim-telescope/telescope.nvim'
 
-" 0.5+
 " native neovim LSP
 Plug 'https://github.com/neovim/nvim-lspconfig'
-
-" https://github.com/hrsh7th/nvim-cmp
-Plug 'neovim/nvim-lspconfig'
 Plug 'hrsh7th/cmp-nvim-lsp'
 Plug 'hrsh7th/cmp-buffer'
 Plug 'hrsh7th/cmp-path'
 Plug 'hrsh7th/cmp-cmdline'
 Plug 'hrsh7th/nvim-cmp'
-
-" For vsnip users.
-Plug 'hrsh7th/cmp-vsnip'
-Plug 'hrsh7th/vim-vsnip'
-
-" For luasnip users.
-" Plug 'L3MON4D3/LuaSnip'
-" Plug 'saadparwaiz1/cmp_luasnip'
-
-" For ultisnips users.
-" Plug 'SirVer/ultisnips'
-" Plug 'quangnguyen30192/cmp-nvim-ultisnips'
-
-" For snippy users.
-" Plug 'dcampos/nvim-snippy'
-" Plug 'dcampos/cmp-snippy'
-
-
 
 " --- end native neovim LSP ---
 
@@ -206,7 +176,7 @@ set clipboard+=unnamedplus " always copies into default clipboard by default. se
 set shada+=n~/.vim/viminfo " change the location of the 'viminfo' file. see https://stackoverflow.com/a/6286925 & https://github.com/neovim/neovim/issues/3469#issuecomment-148900742
 set updatetime=1000 " http://vimdoc.sourceforge.net/htmldoc/options.html#%27updatetime%27
 
-let g:rainbow_active = 0 "set to 0 if you want to enable it later via :RainbowToggle
+let g:rainbow_active = 0
 
 let g:slime_target = "neovim"
 
@@ -239,9 +209,6 @@ let g:vimtex_compiler_latexmk = {
         \   '-interaction=nonstopmode',
         \ ],
         \}
-
-" https://github.com/mogelbrod/vim-jsonpath#quick-start
-let g:jsonpath_register = '*'
 
 let g:tex_flavor = 'latex'
 
@@ -360,12 +327,12 @@ set completefunc=emoji#complete
 
 " Nerd tree
 	map <C-n> :NERDTreeToggle<CR>
-	autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
-    if has('nvim')
-        let NERDTreeBookmarksFile = stdpath('data') . '/NERDTreeBookmarks'
-    else
-        let NERDTreeBookmarksFile = '~/.vim' . '/NERDTreeBookmarks'
-    endif
+	"autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
+    "if has('nvim')
+    "    let NERDTreeBookmarksFile = stdpath('data') . '/NERDTreeBookmarks'
+    "else
+    "    let NERDTreeBookmarksFile = '~/.vim' . '/NERDTreeBookmarks'
+    "endif
 
 " vimling:
 	nm <leader><leader>d :call ToggleDeadKeys()<CR>
@@ -472,7 +439,7 @@ set completefunc=emoji#complete
 " Save file as sudo on files that require root permission
 	cnoremap w!! execute 'silent! write !sudo tee % >/dev/null' <bar> edit!
 
-	"nmap <leader>t :TagbarToggle<CR>
+	nmap <leader>o :TagbarToggle<CR>
 
 """ I haven't used these, Luke does though - maybe one day:D
 
@@ -819,7 +786,6 @@ require'hop'.setup()
 EOF
 
 nnoremap <leader>w :HopWord<CR>
-nnoremap <leader>f :HopWord<CR>
 nnoremap <C-f> :HopWord<CR>
 nnoremap <M-f> :HopWord<CR>
 
@@ -827,10 +793,10 @@ nnoremap <M-f> :HopWord<CR>
 
 " Find files using Telescope command-line sugar.
 nnoremap <C-p> <cmd>Telescope find_files<cr>
-nnoremap <leader>ff <cmd>Telescope find_files<cr>
-nnoremap <leader>fg <cmd>Telescope live_grep<cr>
-nnoremap <leader>fb <cmd>Telescope buffers<cr>
-nnoremap <leader>fh <cmd>Telescope help_tags<cr>
+"nnoremap <leader>ff <cmd>Telescope find_files<cr>
+"nnoremap <leader>fg <cmd>Telescope live_grep<cr>
+"nnoremap <leader>fb <cmd>Telescope buffers<cr>
+"nnoremap <leader>fh <cmd>Telescope help_tags<cr>
 
 " --- Tabline ---
 let g:tablineclosebutton=1
@@ -898,10 +864,6 @@ lua <<EOF
     },
     sources = cmp.config.sources({
       { name = 'nvim_lsp' },
-      { name = 'vsnip' }, -- For vsnip users.
-      -- { name = 'luasnip' }, -- For luasnip users.
-      -- { name = 'ultisnips' }, -- For ultisnips users.
-      -- { name = 'snippy' }, -- For snippy users.
     }, {
       { name = 'buffer' },
     })

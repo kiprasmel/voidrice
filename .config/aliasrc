@@ -1,21 +1,5 @@
 #!/bin/sh
 
-## explanations
-#
-# config: https://wiki.archlinux.org/index.php/Dotfiles#Tracking_dotfiles_directly_with_Git
-#
-# git=hub https://github.com/github/hub
-#
-# config='/usr/bin/hub --git-dir=$HOME/.dotfiles/ --work-tree=$HOME' \
-#
-# `cl` / `cliboard` => `npm i -g clipboard-cli`
-#
-# `sv` => `sudoedit` instead of `sudo nvim`:
-# read https://wiki.archlinux.org/index.php/Security#Editing_files_using_sudo
-
-# Use neovim for vim if present.
-#[ -x "$(command -v nvim)" ] && alias vim="nvim" vimdiff="nvim -d"
-
 alias ka="killall" \
 	Q="cd / && $HOME/.local/bin/tools/ecryptfs-unmount && i3-msg exit" \
 	calcurse="calcurse -D ~/.config/calcurse" \
@@ -354,6 +338,10 @@ gagctpfre() { __gitwrap agctpfre $* }
 gap() { __gitwrap ap $* }
 gadp() { __gitwrap adp $* }
 gagp() { __gitwrap agp $* }
+
+gae() { __gitwrap ae $* }
+gade() { __gitwrap ade $* }
+gage() { __gitwrap age $* }
 
 gat() { __gitwrap at $* }
 gbp() { __gitwrap bp $* }

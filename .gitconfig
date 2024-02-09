@@ -207,6 +207,10 @@
 	adp = !git add --patch ${GIT_PREFIX:-.}
 	agp = !git add --patch               .
 
+	ae  = add --edit
+	ade = !git add --edit ${GIT_PREFIX:-.}
+	age = !git add --edit               .
+
 	b = branch
 	ba = branch --all
 	bt = branch --track
@@ -278,10 +282,13 @@
 	cfg = config --global --edit
 	cs = !clear && git status
 	csl = !clear && git sl
+	create = !hub create
 	d = diff
 	dd = !git diff ${GIT_PREFIX:-.}
 	dg = !git diff .
 	df = diff FETCH_HEAD
+	dm = diff AUTO_MERGE
+	dr = diff AUTO_MERGE # diff rerere
 	ds = diff --staged
 	dds = !git diff --staged ${GIT_PREFIX:-.}
 	dst = diff --stat
@@ -408,8 +415,6 @@
 	rs = reset
 	rmbp = rmbackup
 	rmbackup = !git-rm-backup # remote script, availabe @ dotfiles/.scripts/tools/git-rm-backup
-
-	rd = rebase-diff
 
 	rgrep = !git grep "$1" $(git rev-list --all)
 

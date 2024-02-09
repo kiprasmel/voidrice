@@ -72,6 +72,18 @@ strip_whitespace_and_comments() {
 	if [ "$FILE_EXT" = "cpp" ] || [ "$FILE_EXT" = "c" ]; then
 		# strip comments and whitespace
 		g++ -fpreprocessed -dD -E -P "$FILE"
+
+		#
+		# note: on macos, g++ is available, just need to symlink (or edit call here).
+		#
+		# intel mac:
+		# ln -s /usr/local/bin/gcc-12 /usr/local/bin/gcc
+		# ln -s /usr/local/bin/g++-12 /usr/local/bin/g++
+		#
+		# M1 mac:
+		# ln -s /opt/homebrew/bin/gcc-12 /usr/local/bin/gcc
+		# ln -s /opt/homebrew/bin/g++-12 /usr/local/bin/g++
+		#
 	else
 		# do nothing
 		cat "$FILE"
@@ -82,8 +94,7 @@ strip_whitespace_and_comments() {
 # used to check if a source file
 # should be recompiled or not
 create_hash() {
-	# disable on macos since -fpreprocessed on M1 doesn't work?
-	return 1  # comment out this line to enable and choose the appropriate method
+	#return 1 # comment out this line to enable and choose the appropriate method
 
 	if [ -z "$1" ]; then
 		# stdin

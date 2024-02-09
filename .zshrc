@@ -264,48 +264,38 @@ setopt aliases
 
 # Enable colors and change prompt:
 autoload -U colors && colors
-# without __git_prompt
-#export PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
-# with __git_prompt
-#export PS1='%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[magenta]%}%~ %c$(__git_ps1 " (%s)")%{$fg[red]%}]%{$reset_color%}$%b '
-#export PS1='%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[magenta]%}%1~%{$reset_color%}$(__git_ps1 " (%s)")%{$fg[red]%}]%{$reset_color%}$%b '
-#PS1='[%n@%m %c$(__git_ps1 " (%s)")]\$ '
 
-#PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
+if [ -f "$HOME/.config/git/git-prompt.sh" ]; then
+	# add the git prompt to precmd, as recommended in
+	# https://github.com/git/git/blob/master/contrib/completion/git-prompt.sh
 
-#export PS1='\[$(tput bold)\]\[$(tput setaf 1)\][\[$(tput setaf 3)\]\u\[$(tput setaf 2)\]@\[$(tput setaf 4)\]\h \[$(tput setaf 5)\]\W\[$(tput setaf 15)\]\[$(__git_ps1 " (%s)")\]\[$(tput setaf 1)\]]\[$(tput setaf 7)\]\\$ \[$(tput sgr0)\]'
+	source "$HOME/.config/git/git-prompt.sh"
 
-# add the git prompt to precmd, as recommended in
-# https://github.com/git/git/blob/master/contrib/completion/git-prompt.sh
-# (this is the faster version and it also allows colors!)
-[ -f "$HOME/.config/git/git-prompt.sh" ] && source "$HOME/.config/git/git-prompt.sh"
-precmd () {
-	# the __git_ps1
-	# pre
-	# git's status
-	# post
-	# wrap git's status
-
-	#if [ $? -eq 0 ]; then
+	precmd () {
+		# the __git_ps1
+		# pre
+		# git's status
+		# post
+		# wrap git's status
+	
 		__git_ps1 \
-		"%b%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%1~%{$reset_color%}" \
+		"%b%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%~%{$reset_color%}" \
 		"%{$fg[red]%}]%{$reset_color%}$%b " \
 		" (%s)"
-	#else
-		##__git_ps1 \
-		##"%b%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%1~%{$reset_color%}" \
-		##"%{$fg[red]%}]%{$reset_color%}%{$fg[red]%}$%{$reset_color%}%b " \
-		##" (%s)"
+		
+		# alternative, with exit code prefix:
 
-		#__git_ps1 \
+		# __git_ps1 \
+		# "%b%{$fg[red]%}[%{$fg[red]%}$?%{$reset_color%} %{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%1~%{$reset_color%}" \
+		# "%{$fg[red]%}]%{$reset_color%}$%b " \
+		# " (%s)"
+
 		#"%{$fg[red]%}$?%{$reset_color%} %b%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%1~%{$reset_color%}" \
-		#"%{$fg[red]%}]%{$reset_color%}$%b " \
-		#" (%s)"
-	#fi
-}
-
-# # echo -ne '\e[5 q' # Use beam shape cursor on startup.
-# # preexec() { echo -ne '\e[5 q' ;} # Use beam shape cursor for each new prompt.
+	}
+else
+	# without __git_prompt
+	export PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
+fi
 
 # Use lf to switch directories and bind it to ctrl-o
 lfcd () {
@@ -528,28 +518,28 @@ case "$OSTYPE" in
 
 		_load_zsh_stuff_by_platform() {
 			# zsh-autosuggestions
-			source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+			_ZSH_AUTOSUG="$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+			[ -f "$_ZSH_AUTOSUG" ] && source "$_ZSH_AUTOSUG"
 
 			# zsh-syntax-highlighting.
-			source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+			_ZSH_AUTOHL="$(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+			[ -f "$_ZSH_AUTOHL" ] && source "$_ZSH_AUTOHL"
 		}
 		;;
 	*)
 		_load_zsh_stuff_by_platform() {
-			# zsh-autosuggestions
-			source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+			_ZSH_AUTOSUG="/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+			[ -f "$_ZSH_AUTOSUG" ] && source "$_ZSH_AUTOSUG"
 
-			# zsh-syntax-highlighting.
 			# https://wiki.archlinux.org/title/Zsh#Fish-like_syntax_highlighting_and_autosuggestions
-			source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh # 2>/dev/null
+			_ZSH_AUTOHL="/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+			[ -f "$_ZSH_AUTOHL" ] && source "$_ZSH_AUTOHL"
 		}
 	;;
 esac
 
 # see above
 _load_zsh_stuff_by_platform
-
-export GPG_SIGNING_KEY="$(cat "$HOME"/.gnupg/key)"
 
 [ -z "$TMUX" ] && {
 	bootTimeDuration=$((($(date +%s%N) - $bootTimeStart)/1000000))

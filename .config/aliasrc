@@ -155,6 +155,19 @@ memery() {
 	PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python $ORIG $*
 }
 
+_GPG_KEY_FILE="$HOME/.gnupg/key"
+if [ -f "$_GPG_KEY_FILE" ]; then
+	export GPG_SIGNING_KEY="$(cat $_GPG_KEY_FILE)"
+else
+	WARN_OFF_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/.shell-warn-off" 
+	test ! -f "$WARN_OFF_FILE" && {
+		echo "warn: ~/.config/aliasrc: gpg signing key not set."
+		echo "either get via 'gpg -K' and put ID into $_GPG_KEY_FILE, or 'touch $WARN_OFF_FILE'"
+	}
+fi
+
+command -v diff-so-fancy >/dev/null && export GIT_PAGER="diff-so-fancy | less --tabs=4 -RFX"
+
 # wrap git cmd with extras
 #
 # note - do NOT quote the '$*'!
@@ -200,15 +213,17 @@ config() {
 }
 compdef config="git"
 
-# Fast clipboard copying
-# -r removes the last newline! https://stackoverflow.com/a/43830018/9285308
-clip() { xclip -r -selection c ;}      # pipe  into  me
-copy() { xclip -r -selection c "$1" ;} # gimme the file
-
+# clipboard
 case "$OSTYPE" in
 	darwin*)
+		clip() { pbcopy }
+		copy() { test $# -gt 0 || { printf "copy <file>\n"; return 1 }; cat "$1" | pbcopy }
 		;;
 	*)
+		# -r removes the last newline! https://stackoverflow.com/a/43830018/9285308
+		clip() { xclip -r -selection c ;}      # pipe  into  me
+		copy() { test $# -gt 0 || { printf "copy <file>\n"; return 1 }; xclip -r -selection c "$1" ;} # gimme the file
+
 		pbpaste()     { xclip -r -selection clipboard -o }
 		pbpasteprim() { xclip -r -selection primary   -o }
 		;;

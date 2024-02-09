@@ -22,7 +22,8 @@
 
 	autocrlf = input # `auto` for Windows, `input` for *nix. Read more @ https://stackoverflow.com/q/5834014/9285308
 	safecrlf = false # hides warning message but doesn't impact `autocrlf` functionality
-	pager = diff-so-fancy | less --tabs=4 -RFX
+	# see $GIT_PAGER instead (more flexible)
+	#pager = diff-so-fancy | less --tabs=4 -RFX
 	longpaths = true
 	# ignorecase = true
 	logAllRefUpdates = true # gitassembly

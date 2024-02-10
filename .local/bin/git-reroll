@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+
+# originally from:
+# https://github.com/ttaylorr/dotfiles/blob/1f67d9dac0ed1563b7597746c212814578a9ed7d/bin/git-reroll
+
+main() {
+  case "$1" in
+    -c|--create)          shift; git_reroll__create     $@; ;;
+    -p|--push)            shift; git_reroll__push       $@; ;;
+    -l|--list)            shift; git_reroll__list       $@; ;;
+    -L|--last)            shift; git_reroll__last       $@; ;;
+    -d|--drop)            shift; git_reroll__drop       $@; ;;
+    -r|--rd|--range-diff) shift; git_reroll__range_diff $@; ;;
+	--next)               shift; next_reroll_count      $@; ;;
+	"")                          git_reroll__create     $@; ;;
+	*)
+		echo "unknown opt '$1'"; exit 1 ;;
+  esac
+}
+
+git_reroll__create() {
+  topic="$(topic_name "$1")"
+  count="$(next_reroll_count "$1")"
+
+  git tag "${topic}.v${count}"
+  git_reroll__last
+}
+
+topic_name() {
+  git rev-parse --symbolic-full-name "${1:-HEAD}" \
+    | sed -e 's,^refs/heads/,,'
+}
+
+next_reroll_count() {
+  if [ ! -z "$1" ]; then
+    echo "$1" | sed -e 's/^-v[[:space:]]*//g'
+  else
+    last="$(git_reroll__last)"
+
+	if test "x$last" = "x"
+	then
+		echo "1"
+	else
+	  echo "$last" \
+        | cut -d' ' -f1 \
+        | grep -o "[[:digit:]]*$" \
+        | awk '{ print $0 + 1 }'
+	fi
+  fi
+}
+
+git_reroll__push() {
+  git push -f "${1:-origin}" "$(git symbolic-ref --short HEAD)" \
+    $(git_reroll__list | cut -d' ' -f1)
+}
+
+# will choke if detached head,
+# but handles multiple branches at head.
+git_reroll__list() {
+  TIP="$(topic_name "$@")"
+  git for-each-ref --format='%(refname:short) %(objectname)' "refs/tags/$TIP.v*"
+}
+
+# will handle detached head, but will choke if multiple 
+# branches point to the same commit we're on.
+#git_reroll__list__orig() {
+#  TIP="$(git for-each-ref --points-at="${1:-HEAD}" refs/heads \
+#      | awk '{ print $3 }' \
+#      | sed -e 's,^refs/heads/,,g'
+#    )"
+#
+#  git for-each-ref --format='%(refname:short) %(objectname)' "refs/tags/$TIP.v*"
+#}
+
+git_reroll__last() {
+  git_reroll__list | tail -1
+}
+
+git_reroll__drop() {
+  git_reroll__last "$@" \
+    | sed -e 's,refs/tags/,,' \
+    | awk '{ print $1 }' \
+    | xargs git tag -d
+}
+
+git_reroll__range_diff() {
+  upstream=HEAD
+  case "$1" in
+    -*)
+      # options are passed directly to `git range-diff`
+      ;;
+    *)
+      if test -n "$1"
+      then
+        upstream="$1"
+      fi
+      shift
+      ;;
+  esac
+
+  git range-diff @{u} $(git_reroll__last | cut -d' ' -f1) "$upstream" "$@"
+}
+
+main "$@"
+

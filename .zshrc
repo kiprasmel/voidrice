@@ -28,6 +28,11 @@ esac
 # note: uses gnu-date
 bootTimeStart=$(date +%s%N)
 
+rel() {
+	source "$HOME/.zshrc"
+	source "$HOME/.profile"
+}
+
 # handle mac-os specifics
 case "$OSTYPE" in
 	darwin*)
@@ -67,9 +72,9 @@ case "$OSTYPE" in
 		# TODO fix on vscode
 		#eval "$(pyenv init -)"
 
-		# overwrite the vscodium alias to "code" (non-oss fully)
-		! command -v vscodium && {
-			alias vscodium="code"
+		# overwrite code the the FOSS vscodium
+		command -v vscodium >/dev/null && {
+			alias code="vscodium"
 		}
 		;;
 	*) 
@@ -144,7 +149,7 @@ mkdir -p "$HISTDIR"
 HISTSIZE=999999999
 SAVEHIST=$HISTSIZE
 setopt BANG_HIST                 # Treat the '!' character specially during expansion.
-setopt EXTENDED_HISTORY          # Write the history file in the ":start:elapsed;command" format.
+#setopt EXTENDED_HISTORY          # Write the history file in the ":start:elapsed;command" format.
 setopt append_history            # Don't _overwrite_ history
 setopt INC_APPEND_HISTORY        # Write to the history file immediately, not when the shell exits.
 setopt SHARE_HISTORY             # Share history between all sessions.
@@ -160,6 +165,16 @@ setopt HIST_VERIFY               # Don't execute immediately upon history expans
 setopt share_history             # share history between shells
 setopt hist_no_store             # don't save 'history' cmd in history
 
+function zshaddhistory() {
+	local HID_RE="(^$|^ |password|token|^hid|^h$|^h |^q$|^q )"
+
+	emulate -L zsh
+	if test -n "$__ZSH_HID" || [[ "${1%%$'\n'}" =~ "$HID_RE" ]]; then
+		return 1
+	fi
+
+	return 0
+}
 
 # Directory changing
 # adopted from https://github.com/moprak/zshrc
@@ -269,6 +284,8 @@ if [ -f "$HOME/.config/git/git-prompt.sh" ]; then
 	# add the git prompt to precmd, as recommended in
 	# https://github.com/git/git/blob/master/contrib/completion/git-prompt.sh
 
+	GIT_PS1_COMPRESSSPARSESTATE=1
+
 	source "$HOME/.config/git/git-prompt.sh"
 
 	precmd () {
@@ -277,9 +294,12 @@ if [ -f "$HOME/.config/git/git-prompt.sh" ]; then
 		# git's status
 		# post
 		# wrap git's status
+
+		_HID_PREFIX=
+		test -n "$__ZSH_HID" && _HID_PREFIX="H "
 	
 		__git_ps1 \
-		"%b%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%~%{$reset_color%}" \
+		"${_HID_PREFIX}%b%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%~%{$reset_color%}" \
 		"%{$fg[red]%}]%{$reset_color%}$%b " \
 		" (%s)"
 		
@@ -294,7 +314,7 @@ if [ -f "$HOME/.config/git/git-prompt.sh" ]; then
 	}
 else
 	# without __git_prompt
-	export PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
+	export PS1="${_HID_PREFIX}%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
 fi
 
 # Use lf to switch directories and bind it to ctrl-o

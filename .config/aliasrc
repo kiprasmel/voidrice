@@ -1,21 +1,5 @@
 #!/bin/sh
 
-## explanations
-#
-# config: https://wiki.archlinux.org/index.php/Dotfiles#Tracking_dotfiles_directly_with_Git
-#
-# git=hub https://github.com/github/hub
-#
-# config='/usr/bin/hub --git-dir=$HOME/.dotfiles/ --work-tree=$HOME' \
-#
-# `cl` / `cliboard` => `npm i -g clipboard-cli`
-#
-# `sv` => `sudoedit` instead of `sudo nvim`:
-# read https://wiki.archlinux.org/index.php/Security#Editing_files_using_sudo
-
-# Use neovim for vim if present.
-#[ -x "$(command -v nvim)" ] && alias vim="nvim" vimdiff="nvim -d"
-
 alias ka="killall" \
 	Q="cd / && $HOME/.local/bin/tools/ecryptfs-unmount && i3-msg exit" \
 	calcurse="calcurse -D ~/.config/calcurse" \
@@ -33,15 +17,15 @@ alias ka="killall" \
 	alp="alpine" \
 	mp="multipass" \
 	vm="multipass" \
+	vms="multipass shell" \
 	r="ranger" \
 	k="kubectl" \
 	m="minikube" \
 	le="lerna" \
 	compass="mongodb-compass" \
-	h="grep -Hr" \
 	trem="transmission-remote" \
 	dp.="dolphin ." \
-	v="$EDITOR" \
+	v="${EDITOR:-vi}" \
 	sv="sudoedit" \
 	t="tmux" \
 	sdn="sudo shutdown -h now" \
@@ -58,9 +42,9 @@ alias ka="killall" \
 	lld="lad" \
 	l1d="lsd --classic --icon never -1" \
 	quit="exit" \
-	q="exit" \
+	qq="exit" \
 	cls="clear" \
-	c.="vscodium . && exit" \
+	c.="code . && exit" \
 	gpgkeys="gpg --list-secret-keys --keyid-format LONG" \
 	gpgreload="gpg-connect-agent reloadagent /bye" \
 	yv="yarn version" \
@@ -260,7 +244,6 @@ gsoc() { __gitwrap soc $* }
 gd() { __gitwrap d $* }
 gds() { __gitwrap ds $* }
 gdd() { __gitwrap dd $* }
-gg() { __gitwrap s $* }
 ggg() { __gitwrap s $* }
 gggg() { __gitwrap s $* }
 ggggg() { __gitwrap s $* }
@@ -323,6 +306,7 @@ ga() { __gitwrap a $* }
 
 gad() { __gitwrap ad $* }
 gadc() { __gitwrap adc $* }
+gadcm() { __gitwrap adcm $* }
 gadcn() { __gitwrap adcn $* }
 gadca() { __gitwrap adca $* }
 gadcaw() { __gitwrap adcaw $* }
@@ -338,6 +322,7 @@ gadctpfre() { __gitwrap adctpfre $* }
 
 gag() { __gitwrap ag $* }
 gagc() { __gitwrap agc $* }
+gagcm() { __gitwrap agcm $* }
 gagcn() { __gitwrap agcn $* }
 gagca() { __gitwrap agca $* }
 gagcaw() { __gitwrap agcaw $* }
@@ -354,6 +339,10 @@ gagctpfre() { __gitwrap agctpfre $* }
 gap() { __gitwrap ap $* }
 gadp() { __gitwrap adp $* }
 gagp() { __gitwrap agp $* }
+
+gae() { __gitwrap ae $* }
+gade() { __gitwrap ade $* }
+gage() { __gitwrap age $* }
 
 gat() { __gitwrap at $* }
 gbp() { __gitwrap bp $* }
@@ -427,7 +416,7 @@ rr() {
 
 # vscode
 c() {
-	vscodium $*
+	code $*
 }
 
 compdef c="code"
@@ -559,6 +548,20 @@ xo() {
 	esac
 }
 
+# browser open
+bo() {
+	# if >1 item to open, open all in new window
+	if test $# -gt 1; then
+		"$BROWSER"
+	fi
+
+	while test $# -gt 0; do
+		FILEPATH="$(realpath "$1")"
+		shift
+		"$BROWSER" file://"$FILEPATH"
+	done
+}
+
 xn() { cputils-new $* }
 xr() { cputils-run $* }
 xd() { cputils-run -a "-DDEBUG" $* }
@@ -655,6 +658,25 @@ fuck() {
     test -n "$TF_CMD" && print -s $TF_CMD
 }
 
+q() { _checkhid $0 && hid $* }
+h() { _checkhid $0 && hid $* }
+hid() {
+	_checkhid $0 || return 1
+	lcnt() { wc -l "$1" | awk '{ print $1 }' }
+	local BEFORE="$(lcnt "$HISTFILE")"
+	__ZSH_HID=1 zsh -l
+	local AFTER="$(lcnt "$HISTFILE")"
+	local LAST="$(tail -1 "$HISTFILE")"
+	printf "%s\n%s\n%s\n" "$LAST" "$BEFORE" "$AFTER"
+}
+_checkhid() {
+	CMD="$1"
+	if tail -1 "$HISTFILE" | grep "(^$CMD|;$CMD)" >/dev/null; then
+		echo "FAIL: \$0 ($CMD) rec."
+		return 1
+	fi
+}
+
 pubwhat() {
 	yarn pack $* && tar -xvzf *.tgz | sed '/^package$/d; s@^package/@@g;' && rm -rf package *.tgz >/dev/null
 }
@@ -705,15 +727,9 @@ difb() {
 	/usr/bin/env diff -u -b $* | diff-so-fancy
 }
 
-# toggle
-tog() {
-	cwd="$(pwd)"
-	mkdir -p ~/lost
-	pushd ~/lost &&
-	popd &&
-	ls -la || {
-		printf "$cwd\n" >> ~/lost/found
-	}
+# pushd/popd toggle
+pd() {
+	cd -
 }
 
 umv() {

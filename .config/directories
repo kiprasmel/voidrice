@@ -1,5 +1,4 @@
 # You can add comments to these files with #
-h	$HOME/
 zd	$ZDOTDIR
 tmp $HOME/tmp
 D   ${XDG_DOCUMENTS_DIR:-$HOME/Documents}
@@ -48,9 +47,9 @@ tt	$HOME/projects/turbo-schedule
 rtg	$HOME/projects/roam-traverse-graph
 gsr $HOME/projects/git-stacked-rebase
 ghb $HOME/projects/git-historical-blame
+grd $HOME/projects/git-rebase-diff
 tw  $HOME/learnprojects/tailwindcss
 xs  $HOME/projects/xstate-cpp
-gbak $HOME/projects/git-backup
 so  $HOME/projects/sioko
 es  $HOME/projects/eslint-config-sarpik
 di  $HOME/projects/design-ideas
@@ -58,6 +57,7 @@ b   $HOME/projects/biz
 bz  $HOME/projects/biz
 biz $HOME/projects/biz
 nn 	$HOME/projects/neural-nets-from-scratch
+gi $HOME/forkprojects/git
 pic	$HOME/Pictures
 # sa $HOME/screenshots
 vv  ${XDG_VIDEOS_DIR:-$HOME/Videos}

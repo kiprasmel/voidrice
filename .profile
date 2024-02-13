@@ -16,9 +16,7 @@ export PATH="$PATH:$(du "$HOME/.local/bin/" | cut -f2 | tr '\n' ':' | sed 's/:*$
 
 export PATH="$PATH:${XDG_DATA_HOME:-$HOME/.local/share}/cargo/bin"
 export PATH="$PATH:$HOME/go/bin"
-export PATH="$PATH:$HOME/.gem/ruby/2.6.0/bin"
 export PATH="$PATH:$HOME/.dotnet/tools"
-export PATH="$PATH:/home/kipras/.gem/ruby/2.7.0/bin" # WE'VE REVERSELY FALLEN FOR THE MEME BOYZ
 export PATH="$PATH:/home/kipras/builds/DataGrip-2019.3.2/bin" # WE'VE REVERSELY FALLEN FOR THE MEME BOYZ
 export PATH="$PATH:/opt/resolve/bin"
 export PATH="$PATH:$HOME/.cabal/bin:$HOME/.ghcup/bin"
@@ -59,7 +57,6 @@ export WINEPREFIX="${XDG_DATA_HOME:-$HOME/.local/share}/wineprefixes/default"
 export KODI_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/kodi"
 export PASSWORD_STORE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/password-store"
 export TMUX_TMPDIR="$XDG_RUNTIME_DIR"
-export ANDROID_SDK_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/android"
 export CARGO_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/cargo"
 export GOPATH="${XDG_DATA_HOME:-$HOME/.local/share}/go"
 export ANSIBLE_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/ansible/ansible.cfg"
@@ -173,16 +170,6 @@ ex=🎯:\
 
 [ ! -f ${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc ] && "$HOME/.local/bin/"shortcuts >/dev/null 2>&1 &
 
-# Various bs
-
-# react-native
-# https://facebook.github.io/react-native/docs/getting-started#3-configure-the-android_home-environment-variable
-export ANDROID_HOME="$HOME"/Android/Sdk
-export PATH=$PATH:$ANDROID_HOME/emulator
-export PATH=$PATH:$ANDROID_HOME/tools
-export PATH=$PATH:$ANDROID_HOME/tools/bin
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-
 # xampp
 export PATH="$PATH:/opt/lampp"
 export PATH="$PATH:$HOME/.local/bin"
@@ -243,6 +230,7 @@ case "$OSTYPE" in
 	  	# echo "OSX"
 
 		# homebrew env
+		export HOMEBREW_NO_ANALYTICS=1
 		# update via: "/opt/homebrew/bin/brew shellenv"
 		export HOMEBREW_PREFIX="/opt/homebrew"
 		export HOMEBREW_CELLAR="/opt/homebrew/Cellar"
@@ -308,8 +296,8 @@ case "$OSTYPE" in
 		#
  		# export PATH="/usr/local/opt/gnu-time/libexec/gnubin:$PATH"
 		
-		export PATH="/Applications/Firefox Developer Edition.app/Contents/MacOS/:$PATH"
-		export BROWSER="/Applications/Firefox\ Developer\ Edition.app/Contents/MacOS/firefox" # additional escape characters apparently still needed because of later evaluation
+		#export PATH="/Applications/Firefox Developer Edition.app/Contents/MacOS/:$PATH"
+		export BROWSER="/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox" # additional escape characters apparently still needed because of later evaluation
 
 		#export PATH="/Applications/Google Chrome.app/Contents/MacOS:$PATH"
 		#BROWSER="/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome" # additional escape characters apparently still needed because of later evaluation
@@ -319,6 +307,15 @@ case "$OSTYPE" in
 
 		# java kek
 		export PATH="/usr/local/opt/openjdk/bin:$PATH"
+
+		# android studio
+		export ANDROID_HOME="$HOMEBREW_PREFIX/share/android-commandlinetools"
+		export ANDROID_SDK_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/android"
+
+		# riscv-toolchain
+
+		# https://github.com/riscv-software-src/homebrew-riscv/issues/111#issuecomment-1803490459
+		export PATH="$(brew --prefix bison)/bin:$PATH"
 
 		;;
   linux*) 
@@ -351,7 +348,7 @@ command -v yarn &>/dev/null && {
 	# see https://stackoverflow.com/a/15646750/9285308
 	# and https://github.com/yarnpkg/yarn/issues/2049#issuecomment-397629921
 	export NODE_PATH="$(yarn global dir)"
-	export PATH="$NODE_PATH/node_modules/bin:$PATH"
+	export PATH="$NODE_PATH/node_modules/.bin:$PATH"
 
 	export PATH="$(yarn global bin):$PATH"
 }

@@ -80,6 +80,9 @@
 #	#layout = "LOCAL,BASE,REMOTE / MERGED + BASE,LOCAL + BASE,REMOTE"
 #	#layout = "LOCAL,BASE,REMOTE / MERGED"
 
+[absorb]
+	# https://github.com/tummychow/git-absorb
+	maxStack = 100
 [stackedrebase]
 	#autoApplyIfNeeded = true
 	#autoApplyIfNeeded = false
@@ -101,11 +104,13 @@
 	ff = yes
 [push]
 	followTags = true # see https://stackoverflow.com/a/26438076/9285308
-	autoSetupRemote = true # previously used "git pp", now "git p(ush)" is enough. see git help config
+	#autoSetupRemote = true # previously used "git pp", now "git p(ush)" is enough. see git help config
 [fetch]
-	parallel = 0 # max
+	parallel = 0 # parallel >1
+[submodule]
+	fetchJobs = 0 # parallel >1
 [checkout]
-	parallel = 0 # max
+	workers = 0 # parallel max
 [hub]
 	protocol = ssh
 [help]
@@ -166,8 +171,12 @@
 
 	adc      = !git add ${GIT_PREFIX:-.} && git c
 	agc      = !git add               .  && git c
-	adcn      = !git add ${GIT_PREFIX:-.} && git c --no-verify
-	agcn      = !git add               .  && git c --no-verify
+
+	adct     = !git add ${GIT_PREFIX:-.} && git ctt
+	agct     = !git add               .  && git ctt
+
+	adcm     = !git add ${GIT_PREFIX:-.} && git cm
+	agcm     = !git add               .  && git cm
 
 	adca     = !git add ${GIT_PREFIX:-.} && git ca
 	agca     = !git add               .  && git ca
@@ -175,17 +184,11 @@
 	adcaw    = !git add ${GIT_PREFIX:-.} && git ca --no-edit
 	agcaw    = !git add               .  && git ca --no-edit
 
-	adcawn    = !git add ${GIT_PREFIX:-.} && git ca --no-edit --no-verify
-	agcawn    = !git add               .  && git ca --no-edit --no-verify
-
 	adcawpf  = !git add ${GIT_PREFIX:-.} && git ca --no-edit && git push -f
 	agcawpf  = !git add               .  && git ca --no-edit && git push -f
 
-	adcawpfn = !git add ${GIT_PREFIX:-.} && git ca --no-edit --no-verify && git push -f --no-verify # --no-verify to ignore husky's hooks
-	agcawpfn = !git add               .  && git ca --no-edit --no-verify && git push -f --no-verify # --no-verify to ignore husky's hooks
-
-	adct     = !git add ${GIT_PREFIX:-.} && git c -m "TEMP" --no-verify # --no-verify to ignore husky's hooks 
-	agct     = !git add               .  && git c -m "TEMP" --no-verify # --no-verify to ignore husky's hooks 
+	adcawpfn = !git add ${GIT_PREFIX:-.} && git ca --no-edit --no-verify && git push -f --no-verify
+	agcawpfn = !git add               .  && git ca --no-edit --no-verify && git push -f --no-verify
 
 	# see "cf"
 	adcf     = "!git add ${GIT_PREFIX:-.} && git cf $* #"
@@ -197,15 +200,16 @@
 	adcfrw     = "!git add ${GIT_PREFIX:-.} && git cf \"$1\" && EDITOR=true git rebase -i \"$(git fixup-target)~\" #"
 	agcfrw     = "!git add               .  && git cf \"$1\" && EDITOR=true git rebase -i \"$(git fixup-target)~\" #"
 
-	adctpf   = !git add ${GIT_PREFIX:-.} && git c -m "TEMP" --no-verify && git push -f --no-verify # --no-verify to ignore husky's hooks 
-	agctpf   = !git add               .  && git c -m "TEMP" --no-verify && git push -f --no-verify # --no-verify to ignore husky's hooks 
-
-	adctpfre = !git add ${GIT_PREFIX:-.} && git c -m "TEMP" --no-verify && git push -f --no-verify && git reset "@~" # --no-verify to ignore husky's hooks 
-	agctpfre = !git add               .  && git c -m "TEMP" --no-verify && git push -f --no-verify && git reset "@~" # --no-verify to ignore husky's hooks 
+	adctpf   = !git add ${GIT_PREFIX:-.} && git c -m "TEMP" --no-verify && git push -f --no-verify
+	agctpf   = !git add               .  && git c -m "TEMP" --no-verify && git push -f --no-verify
 
 	ap  = add --patch
 	adp = !git add --patch ${GIT_PREFIX:-.}
 	agp = !git add --patch               .
+
+	ae  = add --edit
+	ade = !git add --edit ${GIT_PREFIX:-.}
+	age = !git add --edit               .
 
 	b = branch
 	ba = branch --all
@@ -261,6 +265,7 @@
 	# print info of the target fixup commit & create a new commit that fixes up the target.
 	cf = "!git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $(git rev-parse \"$1\")\" #" # https://stackoverflow.com/a/39523506/9285308
 	cfr = "!git cf \"$1\" && git fr"
+	rf = fr
 	fr = "!git stash -u && git rebase -i \"$(git fixup-target)~\" && git stash pop #"
 	# parse out the fixup target from the now-committed "fixup! <committish>" commit's message.
 	fixup-target = "!git show \"@\" --pretty='format:%s' -q | cut -d' ' -f2"
@@ -269,6 +274,8 @@
 	gg = cgg
 	#cl = clone
 	cl = "!git clone $* || hub clone $*"
+	# clone fast. see https://github.blog/2020-01-17-bring-your-monorepo-down-to-size-with-sparse-checkout/#sparse-checkout-and-partial-clones
+	clf = "!git clone --filter=blob:none --no-checkout $* || hub clone --filter=blob:none --no-checkout $*"
 	co = checkout
 	cob = checkout -b
 	#co = !git stash -u && git checkout
@@ -278,14 +285,18 @@
 	cfg = config --global --edit
 	cs = !clear && git status
 	csl = !clear && git sl
+	create = !hub create
 	d = diff
 	dd = !git diff ${GIT_PREFIX:-.}
 	dg = !git diff .
 	df = diff FETCH_HEAD
+	dm = diff AUTO_MERGE
+	dr = diff AUTO_MERGE # diff rerere
 	ds = diff --staged
 	dds = !git diff --staged ${GIT_PREFIX:-.}
 	dst = diff --stat
 	dss = dst
+	d3 = diff3c # http://github.com/kiprasmel/git-diff3c
 	e = exec
 	exec = "!exec " # exec script at root of repo!
 	                # this is useful in case you're deep in the repo
@@ -378,7 +389,8 @@
 
 	#q =
 	r = rebase
-	rr = stacked-rebase
+	#rr = stacked-rebase
+	rr = !$HOME/projects/git-stacked-rebase/dist/git-stacked-rebase.js
 	rc = rebase --continue
 	rcw = !EDITOR=true git rebase --continue
 	ri = rebase -i
@@ -396,6 +408,8 @@
 	# https://github.com/kiprasmel/git-rebase-diff
 	rd = rebase-diff
 
+	rad = range-diff
+
 	rew = find-rewritten # https://github.com/kiprasmel/git-find-rewritten
 
 	# stacked diffs in git
@@ -408,8 +422,6 @@
 	rs = reset
 	rmbp = rmbackup
 	rmbackup = !git-rm-backup # remote script, availabe @ dotfiles/.scripts/tools/git-rm-backup
-
-	rd = rebase-diff
 
 	rgrep = !git grep "$1" $(git rev-list --all)
 
@@ -433,6 +445,8 @@
 	soc = !git show "$(xclip -r -selection clipboard -o)" # TODO
 
 	stash-unapply = !git stash show -p | git apply -Rc
+
+	spo = sparse-checkout
 	t = tag
 	tt = tas
 	tas = tag -a -s

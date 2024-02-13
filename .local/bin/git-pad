@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# patch diff / patch delta - how much has changed
+
 # git-pad               view untracked changes
 # git-pad <committish>  view only <committish> changes
 
@@ -12,10 +14,9 @@ else
 	PA="$(git -c core.pager='' show -u --raw $*)"
 fi
 
-#PA="$(${GET_PATCH[@]} $*)"
-ADD="$(printf "%s" "$PA" | grep '^+' | grep -v '^+++' | wc -l)"
-SUB="$(printf "%s" "$PA" | grep '^-' | grep -v '^---' | wc -l)"
-#BOTH="±$(printf "%s" "$PA" | grep -v '^+++' | grep -v '^---' | grep '^[+-]' | wc -l)"
-BOTH=$(($ADD + $SUB))
-printf "+$ADD\n-$SUB\n±$BOTH\n"
+ADDS_DELS="$(printf "%s" "$PA" | grep '^[+-]' | grep -v '^+++' | grep -v '^---')"
+ADD="$(printf "%s" "$ADDS_DELS" | grep '^+' | wc -l)"
+DEL="$(printf "%s" "$ADDS_DELS" | grep '^-' | wc -l)"
+BOTH=$(($ADD + $DEL))
+printf " +$ADD\n -$DEL\n ±$BOTH\n"
 

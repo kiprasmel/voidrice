@@ -1,7 +1,34 @@
 # https://wiki.archlinux.org/title/zsh
 
-# make the gnu-date command available so that bootTime
-# can be accurately measured
+test -n "$RUN_PROFILER" && zmodload zsh/zprof
+
+case "$OSTYPE" in
+	darwin*)
+		if command -v gdate >/dev/null; then
+			get_date() { printf "%s" $(gdate +%s%N) }
+			bootTimeStart=$(get_date)
+		else
+			get_date() { printf "0" }
+			bootTimeStart=0
+			noStartTime=1
+		fi
+		;;
+	*)
+		# measure boot time (see also the last line)
+		# note: uses gnu-date
+		get_date() { printf "%s" $(date +%s%N) }
+		bootTimeStart=$(get_date)
+		;;
+esac
+
+rel() {
+	source "$HOME/.zshrc"
+	source "$HOME/.profile"
+}
+
+source ~/zsh-defer/zsh-defer.plugin.zsh
+
+# handle mac-os specifics
 case "$OSTYPE" in
 	darwin*)
 		# make gnu date (gdate) take over osx date, & other utils.
@@ -19,23 +46,7 @@ case "$OSTYPE" in
 
 		# higher precedence
 		export PATH="$HOMEBREW_PREFIX/bin:$PATH"
-		;;
-	*)
-		;;
-esac
 
-# measure boot time (see also the last line)
-# note: uses gnu-date
-bootTimeStart=$(date +%s%N)
-
-rel() {
-	source "$HOME/.zshrc"
-	source "$HOME/.profile"
-}
-
-# handle mac-os specifics
-case "$OSTYPE" in
-	darwin*)
 		# disabled because no longer needed apparently -
 		# works just fine w/o it, even the 'date' stuff - 
 		# for it, just extending the $PATH is enough
@@ -72,14 +83,19 @@ case "$OSTYPE" in
 		# TODO fix on vscode
 		#eval "$(pyenv init -)"
 
-		# overwrite code the the FOSS vscodium
-		command -v vscodium >/dev/null && {
-			alias code="vscodium"
+		# overwrite code to the FOSS vscodium
+		command -v codium >/dev/null && {
+			alias code="codium"
 		}
+
 		;;
 	*) 
 		;;
 esac
+
+# have time work just like in bash/POSIX
+#disable -r time
+#alias time="time -p"
 
 # bash bash compatibility mode - see https://github.com/eddiezane/lunchy/issues/57#issuecomment-448588918
 #autoload -U +X bashcompinit && bashcompinit
@@ -561,8 +577,10 @@ esac
 # see above
 _load_zsh_stuff_by_platform
 
-[ -z "$TMUX" ] && {
-	bootTimeDuration=$((($(date +%s%N) - $bootTimeStart)/1000000))
+if [ -z "$TMUX" ] && [ "x$noStartTime" = "x" ]; then
+	bootTimeDuration=$((($(get_date) - $bootTimeStart)/1000000))
 	printf "$bootTimeDuration ms\n"
-}
+fi
+
+test -n "$RUN_PROFILER" && zprof
 

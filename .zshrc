@@ -141,19 +141,19 @@ stty erase "^?"
 
 # source 'git-extras' completions
 # (https://github.com/tj/git-extras)
-[ -f "$HOME/.config/zsh/completions/git-extras-completion.zsh" ] && source "$HOME/.config/zsh/completions/git-extras-completion.zsh"
+[ -f "$HOME/.config/zsh/completions/git-extras-completion.zsh" ] && zsh-defer source "$HOME/.config/zsh/completions/git-extras-completion.zsh"
 
 # Load aliases and shortcuts if existent.
-[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc"
-[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutenvrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutenvrc"
-[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/aliasrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/aliasrc"
+[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc" ] && zsh-defer source "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc"
+[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutenvrc" ] && zsh-defer source "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutenvrc"
+[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/aliasrc" ] && zsh-defer source "${XDG_CONFIG_HOME:-$HOME/.config}/aliasrc"
 #[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/zshnameddirrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/zshnameddirrc"
 
 # ghcup-env (haskell poggers)
-[ -f "$HOME/.ghcup/env" ] && source "$HOME/.ghcup/env"
+[ -f "$HOME/.ghcup/env" ] && zsh-defer source "$HOME/.ghcup/env"
 
 # ocaml
-[ -f "$HOME/.opam/opam-init/init.zsh" ] && source "$HOME/.opam/opam-init/init.zsh"
+[ -f "$HOME/.opam/opam-init/init.zsh" ] && zsh-defer source "$HOME/.opam/opam-init/init.zsh"
 
 ###
 # history #
@@ -521,7 +521,7 @@ bindkey -M menuselect '^M' .accept-line
 #source ~/.config/zsh/completions/_deno
 
 # https://github.com/okapia/zsh-viexchange
-[ -f "${ZDOTDIR}/zsh-viexchange/zsh-viexchange.plugin.zsh" ] && source "${ZDOTDIR}/zsh-viexchange/zsh-viexchange.plugin.zsh"
+#[ -f "${ZDOTDIR}/zsh-viexchange/zsh-viexchange.plugin.zsh" ] && zsh-defer source "${ZDOTDIR}/zsh-viexchange/zsh-viexchange.plugin.zsh"
 # zstyle 'zle:exchange' highlight 'fg=26,bg=195'
 zstyle 'zle:exchange' highlight 'fg=195,bg=26'
 
@@ -532,7 +532,7 @@ case "$OSTYPE" in
 	# https://unix.stackexchange.com/a/446380/332452
 	darwin*)
 		# iterm2
-		test -e "${ZDOTDIR}/.iterm2_shell_integration.zsh" && source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
+		test -e "${ZDOTDIR}/.iterm2_shell_integration.zsh" && zsh-defer source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
 		
 		# export PATH="/usr/local/opt/gnu-time/libexec/gnubin:$PATH"
 
@@ -550,7 +550,7 @@ case "$OSTYPE" in
 		# }
 
 		# diff apparently doesn't have --color=always
-		unalias diff
+		#unalias diff
 
 		_load_zsh_stuff_by_platform() {
 			# zsh-autosuggestions

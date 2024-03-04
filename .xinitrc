@@ -5,13 +5,14 @@
 # $HOME/.xinitrc
 #
 # also take a look at
-# /etc/X11/xorg.conf.d/70-synaptics.conf
+# - /etc/X11/xorg.conf.d/70-synaptics.conf
+# - https://wiki.archlinux.org/index.php/Xorg/Keyboard_configuration#Using_X_configuration_files
 #
 
 # set ALT + SHIFT to change layouts from US to LT & vice versa
-setxkbmap -option "grp:switch,grp:alt_shift_toggle,grp_led:scroll" -layout "us,lt" &
+# setxkbmap -option "grp:switch,grp:alt_shift_toggle,grp_led:scroll" -layout "us,lt" &
 # ~~ NOTE - moved to /etc/X11/xorg.conf.d/00-keyboard.conf ~~
-# READ MORE at https://wiki.archlinux.org/index.php/Xorg/Keyboard_configuration#Using_X_configuration_files
+# READ MORE at 
 
 # enables clicking the touchpad
 # https://bbs.archlinux.org/viewtopic.php?pid=1740153#p1740153
@@ -30,10 +31,7 @@ xrdb "${XDG_CONFIG_HOME:-$HOME/.config}/x11/.Xdefaults"
 numlockx &
 
 # keyboard remaps (called by i3)
-. ~/.local/bin/remaps
-. ~/.local/bin/remaps
-. ~/.local/bin/remaps
-. ~/.local/bin/remaps
+"$HOME/.local/bin/remaps" &
 
 # automatic screen brightness adjustment, blue light filtering and more
 # https://wiki.archlinux.org/index.php/Redshift

@@ -15,11 +15,11 @@ interval=5
 #interval=once
 #signal=11
 
-#[disk]
+#[sb-disk]
 #interval=60
 #command=disk /
 
-[disk]
+[sb-disk]
 interval=60
 command=disk /home avail
 
@@ -36,7 +36,7 @@ signal=6
 #[iplocate]
 #interval=30
 
-[pacpackages]
+[sb-pacpackages]
 interval=once
 signal=8
 
@@ -44,13 +44,16 @@ signal=8
 label=🏃
 interval=1800
 
-[torrent]
+[sb-torrent]
 interval=20
 signal=7
 
 #[weather]
 #interval=3600
 #signal=5
+
+[sb-doppler]
+interval=once
 
 [mailbox]
 interval=180
@@ -60,8 +63,8 @@ signal=12
 interval=30
 label=💳
 
-[memory]
-command=memory | sed 's/ mem/🧠/; s/swp/🦢/; s/\s*$//;'
+[sb-memory]
+command=sb-memory | sed 's/ mem/🧠/; s/swp/🦢/; s/\s*$//;'
 interval=5
 
 #[memory-mem]
@@ -74,7 +77,7 @@ interval=5
 #interval=5
 #label=🦢
 
-[cpu]
+[sb-cpu]
 interval=30
 label=💻
 
@@ -94,11 +97,13 @@ command=clock date
 interval=30
 
 [time]
-command=clock time
+ommand=clock time
 interval=30
 
 [keyboard-layout]
-interval=1
+#interval=once
+interval=5
+signal=30
 
 [twitch-viewer-count]
 interval=5

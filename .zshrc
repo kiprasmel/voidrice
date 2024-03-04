@@ -284,7 +284,7 @@ precmd () {
 
 	#if [ $? -eq 0 ]; then
 		__git_ps1 \
-		"%b%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%m %{$fg[magenta]%}%1~%{$reset_color%}" \
+		"%b%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%B%m%b %{$fg[magenta]%}%1~%{$reset_color%}" \
 		"%{$fg[red]%}]%{$reset_color%}$%b " \
 		" (%s)"
 	#else

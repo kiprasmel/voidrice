@@ -27,7 +27,8 @@
 	# ignorecase = true
 	logAllRefUpdates = true # gitassembly
 [rerere]
-	enabled = true # gitassembly
+	#enabled = true # gitassembly
+	# disabled - pretty dangerous
 [imap]
 	host = mail.kipras.org
 	user = kipras@kipras.org
@@ -81,7 +82,6 @@
 
 [stackedrebase]
 	autoApplyIfNeeded = true
-	#autoApplyIfNeeded = false
 [rebase]
 	missingCommitsCheck = warn
 	#autostash = true # you cannot access it from the stash which sucks
@@ -244,7 +244,6 @@
 	# https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---signoff
 	# https://docs.github.com/en/organizations/managing-organization-settings/managing-the-commit-signoff-policy-for-your-organization
 	# ^ sus. if requires signoffs, can rebase, otherwise nopers
-
 	ca = c --amend
 	caw = c --amend --no-edit
 	cawpf = !git c --amend --no-edit && git push -f

@@ -66,9 +66,6 @@ export MBSYNCRC="${XDG_CONFIG_HOME:-$HOME/.config}/mbsync/config"
 export ELECTRUMDIR="${XDG_DATA_HOME:-$HOME/.local/share}/electrum"
 
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 # https://wiki.archlinux.org/index.php/.NET_Core#Telemetry
-export DOTNET_ROOT="/opt/dotnet" # https://wiki.archlinux.org/index.php/.NET_Core#Troubleshooting
-export MSBuildSDKsPath="/opt/dotnet/sdk/3.0.100/Sdks";
-#export MSBuildSDKsPath="/opt/dotnet/sdk/2.2.108/Sdks";
 
 # Other program settings:
 export DICS="/usr/share/stardict/dic/"

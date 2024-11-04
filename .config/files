@@ -2,6 +2,7 @@ bf	${XDG_CONFIG_HOME:-$HOME/.config}/files
 bmf	${XDG_CONFIG_HOME:-$HOME/.config}/files
 bd	${XDG_CONFIG_HOME:-$HOME/.config}/directories
 bmd	${XDG_CONFIG_HOME:-$HOME/.config}/directories
+bmdv ${XDG_CONFIG_HOME:-$HOME/.config}/docker-dev-volumes
 bw	${XDG_CONFIG_HOME:-$HOME/.config}/bookmarks
 cfa	${XDG_CONFIG_HOME:-$HOME/.config}/aliasrc
 cfv	${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.vim

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# deno typescript repl
+# https://github.com/denoland/deno/issues/23071
+
+set -xeuo pipefail
+
+FILE="$1"
+shift
+
+FILEPATH="$(realpath "$FILE")"
+DIR="$(dirname "$FILEPATH")"
+
+cd "$DIR"
+deno repl --eval-file="$FILEPATH" --unstable-sloppy-imports
+

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cputils.config.bash
 
-export CPP_COMPILER_DEFAULT_ARGS="-std=c++20 -g -Wall"
+export CPP_COMPILER_DEFAULT_ARGS="-std=c++20 -g -Wall -Wextra"
 export INPUT_CACHE_FILE_EXTENSION="cpp.txt"
 export HIDE_EXAMPLES=1
 

@@ -170,7 +170,7 @@ colorscheme onedark
 
 set title
 set background=dark
-set go=a
+"set go=a
 set mouse=a
 set nohlsearch
 set clipboard+=unnamedplus " always copies into default clipboard by default. see https://stackoverflow.com/a/11489440/9285308
@@ -363,7 +363,7 @@ set completefunc=emoji#complete
 
 " Recompile markdown files to pdfs on write
 " compiler script is here: https://github.com/kiprasmel/voidrice/blob/master/.local/bin/compiler
-	autocmd BufWritePost *.md :AsyncRun compiler %
+	" autocmd BufWritePost *.md :AsyncRun compiler %
 
 " open input file (see cputils)
 	"nnoremap <leader>e :50vsplit %.txt<CR>
@@ -877,7 +877,7 @@ lua <<EOF
   -- Setup lspconfig.
   local capabilities = require('cmp_nvim_lsp').default_capabilities(vim.lsp.protocol.make_client_capabilities())
   -- Replace <YOUR_LSP_SERVER> with each lsp server you've enabled.
-  require('lspconfig')['tsserver'].setup {
+  require('lspconfig')['ts_ls'].setup {
     capabilities = capabilities
   }
 EOF

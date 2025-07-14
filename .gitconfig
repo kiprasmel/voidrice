@@ -146,11 +146,11 @@
 	adcf     = "!git add ${GIT_PREFIX:-.} && git cf $* #"
 	agcf     = "!git add               .  && git cf $* #"
 
-	adcfr     = "!git add ${GIT_PREFIX:-.} && git cf \"$1\" && git rebase -i \"$(git fixup-target)~\" #"
-	agcfr     = "!git add               .  && git cf \"$1\" && git rebase -i \"$(git fixup-target)~\" #"
+	adcfr     = "!git add ${GIT_PREFIX:-.} && git cf \"$1\" && git fr #"
+	agcfr     = "!git add               .  && git cf \"$1\" && git fr #"
 
-	adcfrw     = "!git add ${GIT_PREFIX:-.} && git cf \"$1\" && EDITOR=true git rebase -i \"$(git fixup-target)~\" #"
-	agcfrw     = "!git add               .  && git cf \"$1\" && EDITOR=true git rebase -i \"$(git fixup-target)~\" #"
+	adcfrw     = "!git add ${GIT_PREFIX:-.} && git cf \"$1\" && EDITOR=true git fr #"
+	agcfrw     = "!git add               .  && git cf \"$1\" && EDITOR=true git fr #"
 
 	adctpf   = !git add ${GIT_PREFIX:-.} && git c -m "TEMP" --no-verify && git push -f --no-verify
 	agctpf   = !git add               .  && git c -m "TEMP" --no-verify && git push -f --no-verify
@@ -173,9 +173,11 @@
 
 	b = branch
 	ba = branch --all
+	bl = branch --list --sort=authordate
 	bt = branch --track
 	sob = branch --show-current
 	sod = !git diff "origin"/"$(git sob)" $*
+	sods = !git diff "origin"/"$(git sob)" --stat $*
 	sodp = !git diff "origin"/"$(git parent)" "$(git parent)" $*
 
 	bp = backup
@@ -193,13 +195,15 @@
 	cawpfn = !git c --amend --no-edit && git push -f --no-verify
 
 	cf = "!git show \"$1\" --format=oneline --no-patch && git c --message=\"fixup! $(git rev-parse \"$1\")\" #"
-	fr = "!git stash -u && git rebase -i \"$(git fixup-target)~\" && git stash pop #"
-	cfr = "!git cf \"$1\" && git fr"
+	#fr = "!git stash -u && git rebase -i \"$(git fixup-target-rebase)\" && git stash pop #" # TODO handle if stashed nothing
+	fr = "!git rebase -i --autostash \"$(git fixup-target-rebase)\""
+	cfr = "!git cf \"$1\" && git fr #"
 	fixup-target = "!git show \"@\" --pretty='format:%s' -q | cut -d' ' -f2"
+	fixup-target-rebase="!git rev-parse --verify \"$(git fixup-target)~\" 2>/dev/null || echo '--root'"
 
 	co = checkout
 	cob = checkout -b
-	com = checkout master
+	com = !git checkout $(git default-branch)
 
 	cfg = config --global --edit
 
@@ -220,6 +224,8 @@
 	da = diff AUTO_MERGE
 	dm = diff AUTO_MERGE
 	d3 = diff3c # http://github.com/kiprasmel/git-diff3c
+	default-branch = !git symbolic-ref refs/remotes/origin/HEAD --short | sed 's@.*/@@g'
+	default-branch-r = symbolic-ref refs/remotes/origin/HEAD --short
 
 	e = exec
 	exec = "!exec "
@@ -249,9 +255,10 @@
 	lgs = ls
 	lgp = lg --patch
 	lp = log --patch
+	lf = l --follow
 	lpf = lp --follow
 
-	lf = !git log -L":$1:$2" # log function in file
+	lff = !git log -L":$1:$2" # log function in file
 
 	#m = merge
 	mt = mergetool
@@ -274,9 +281,10 @@
 	# "patch delta"
 	#pad = pad              # stats (+, -, ±) from ref to HEAD + uncommited changes
 	pado = !git pad ${1:-@} # stats (+, -, ±) of *only* the ref
-	padom = !git pad origin/master..${1:-@}
-	padd = !git pad ${1:-origin/master}..${2:-@}
+	padom = !git pad $(git default-branch-r)..${1:-@}
+	padd = !git pad ${1:-$(git default-branch-r)}..${2:-@}
 	padp = !git pad "$(git parent)"
+	pads = !git pad --staged
 
 	parent = !git parentraw 2>/dev/null
 	parentraw = !git show-branch | sed \"s/].*//\" | grep \"\\*\" | grep -v \"$(git rev-parse --abbrev-ref HEAD)\" | head -n1 | sed \"s/^.*\\[//\"
@@ -290,11 +298,11 @@
 	ri = rebase -i
 	ra = rebase --abort
 	rc = rebase --continue
-	rr = stacked-rebase
-	rom =  rebase    origin/master
-	riom = rebase -i origin/master
-	rum =  rebase    upstream/master
-	rium = rebase -i upstream/master
+	sr = stacked-rebase
+	rom =  !git rebase    $(git default-branch-r)
+	riom = !git rebase -i $(git default-branch-r)
+	rum =  !git rebase    upstream/$(git default-branch)
+	rium = !git rebase -i upstream/$(git default-branch)
 	riw =   !EDITOR=true git ri
 	rcw =   !EDITOR=true git rc
 	riomw = !EDITOR=true git riom
@@ -305,7 +313,8 @@
 
 	rad = range-diff
 
-	re = rerere
+	# https://github.com/kiprasmel/git-reverse-rebase
+	rr = reverse-rebase
 
 	# https://github.com/kiprasmel/git-stacked-rebase
 	#stacked-rebase = stacked-rebase
@@ -323,6 +332,8 @@
 	sos = show --stat
 	soc = !git show "$(pbpaste)"
 	som = show --pretty=format:"%B" -q
+	# show target -- should be used with a commit which has a message "fixup! <SHA>"
+	sot = "!git som $1 | cut -d' ' -f2 | xargs git show #"
 
 	st = stash
 	sto = stash show

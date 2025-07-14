@@ -23,6 +23,11 @@ case "$OSTYPE" in
 esac
 
 rel() {
+	# reset dir
+	pushd ~
+	popd
+
+	# reload configs
 	source "$HOME/.zshrc"
 	source "$HOME/.profile"
 	"$HOME/.local/bin/shortcuts"
@@ -55,34 +60,9 @@ case "$OSTYPE" in
 		## source .profile if haven't already
 		#[ -z "$SOURCED_DOT_PROFILE" ] && source "$HOME/.profile"
 
-
-		# will load nvm if it wasn't loaded already,
-		# but only when it's called
-		[ -n "nvm" ] && {
-			nvm() {
-				# here, put everything that you'd
-				# normally put directly in your zshrc/bashrc/.profile
-				# (i.e., the official steps to load nvm):
-				export NVM_DIR="$HOME/.config/nvm"
-				[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-				[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-
-				# by now, "nvm" will be replaced with the a new "nvm" function
-				# (the one that we actually want),
-				# and thus infinite loops will not occur.
-				# 
-				# also, since "nvm" will no longer point to _lazy_init_nvm_once,
-				# subsequent calls to "nvm" will not call _lazy_init_nvm_once,
-				# and thus nvm won't be loaded again, because it's already loaded.
-				#
-				nvm $*
-			}
-		}
-
-		# overwrite code to the FOSS vscodium
-		command -v codium >/dev/null && {
-			alias code="codium"
+		nvm() {
+			export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+			[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 		}
 
 		;;
@@ -609,3 +589,4 @@ if [ -z "$TMUX" ] && [ "x$noStartTime" = "x" ]; then
 fi
 
 test -z "$RUN_PROFILER" || zprof
+

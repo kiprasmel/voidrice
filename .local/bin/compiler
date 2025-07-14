@@ -82,6 +82,7 @@ case "$file" in
 		;;
 	*\.ts) ts-node-dev "$file" ;;
 	*\.py) if which python >/dev/null 2>&1; then python "$file"; else python3 "$file"; fi ;;
+	*\.R) Rscript "$file" ;;
 	*\.go) go run "$file" ;;
 	*\.md)	if  [ -x "$(command -v lowdown)" ]; then
 			lowdown --parse-no-intraemph "$file" -Tms | groff -mpdfmark -ms -kept > "$base".pdf

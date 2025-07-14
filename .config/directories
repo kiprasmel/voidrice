@@ -17,7 +17,7 @@ cpa  $HOME/projects/cputils
 fp 	$HOME/forkprojects
 lp	$HOME/learnprojects
 dp  $HOME/demoprojects
-css $HOME/learnprojects/css-suck-less
+hp $HOME/helpprojects
 lax $HOME/projects/latex
 res  $HOME/projects/latex/resume
 rgl  $HOME/projects/refined-gitlab
@@ -37,8 +37,9 @@ lpk $HOME/learnprojects/kube
 gop $HOME/go/src/
 tp $HOME/testprojects
 wp $HOME/workprojects
-wo $HOME/work
-oss $HOME/oss
+rp $HOME/reviewprojects
+misi $HOME/workprojects/misi
+sf $HOME/surfe
 prp $HOME/privateprojects
 pri $HOME/privateprojects/interactio
 prip $HOME/privateprojects/interactio/panel
@@ -47,22 +48,26 @@ sn $HOME/projects/snitch-latest-car
 tt	$HOME/projects/turbo-schedule
 rtg	$HOME/projects/roam-traverse-graph
 gsr $HOME/projects/git-stacked-rebase
+re $HOME/projects/git-reverse-rebase
+rere $HOME/projects/git-reverse-rebase
 pa  $HOME/patch
 ghb $HOME/projects/git-historical-blame
-grd $HOME/projects/git-rebase-diff
+#grd $HOME/projects/git-rebase-diff
 tw  $HOME/learnprojects/tailwindcss
 xs  $HOME/projects/xstate-cpp
 so  $HOME/projects/sioko
-es  $HOME/projects/eslint-config-sarpik
+es  $HOME/projects/eslint-config-kiprasmel
 di  $HOME/projects/design-ideas
 b   $HOME/projects/biz
 bz  $HOME/projects/biz
 biz $HOME/projects/biz
 nn 	$HOME/projects/neural-nets-from-scratch
 gi $HOME/forkprojects/git
-ra $HOME/infra
-fra $HOME/infra
 infra $HOME/infra
+fra $HOME/infra
+ra $HOME/infra
+ral $HOME/infra/local
+ras $HOME/infra/server
 pic	$HOME/Pictures
 # sa $HOME/screenshots
 vv  ${XDG_VIDEOS_DIR:-$HOME/Videos}
@@ -92,8 +97,10 @@ wa $HOME/wagie
 wag $HOME/wagie
 wgg $HOME/wagie
 
+not $HOME/Documents/notes
+
 notes $HOME/projects/notes-private
-not $HOME/projects/roam-traverse-graph/plugin-export-public-pages
+#not $HOME/projects/roam-traverse-graph/plugin-export-public-pages
 
 lds $HOME/projects/local-dev-server
 dg $HOME/projects/depgraph
@@ -106,6 +113,9 @@ cs $HOME/csapp
 
 s $HOME/school
 sw $HOME/school/web
+
+# bs
+bsr $HOME/Documents/notes/bs/research
 
 # server
 ng /etc/nginx

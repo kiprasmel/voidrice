@@ -4,6 +4,7 @@
 
 # git-pad               view untracked changes
 # git-pad <committish>  view only <committish> changes
+# git-pad --staged      view staged changes
 
 if [ -z "$1" ]; then
 	# stats (+, -, ±) from ref to HEAD + uncommited changes
@@ -11,7 +12,15 @@ if [ -z "$1" ]; then
 else
 	# stats (+, -, ±) of only the ref (same as pad, but s/pa/pao/g)
 	# the "ref" should be provided as $1
-	PA="$(git -c core.pager='' show -u --raw $*)"
+	case "$1" in
+		"--staged")
+			shift
+			PA="$(git -c core.pager='' diff -u --staged $*)"
+			;;
+		*)
+			PA="$(git -c core.pager='' show -u --raw $*)"
+			;;
+	esac
 fi
 
 ADDS_DELS="$(printf "%s" "$PA" | grep '^[+-]' | grep -v '^+++' | grep -v '^---')"

@@ -214,8 +214,15 @@ export KEEPASS_DB="$HOME/private/keepassxc-passwords.kdbx"
 # work
 export PIPEDRIVE_GIT_DIR="$HOME/wagie"
 
+export ZENML_DEBUG=true
+export ZENML_LOGGING_VERBOSITY=INFO
+export ZENML_ANALYTICS_OPT_IN=false
+export MLSTACKS_ANALYTICS_OPT_OUT=true
+
 export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
 export PUPPETEER_EXECUTABLE_PATH="$(which chromium)"
+
+export PATH="$PATH:$GOPATH/bin"
 
 # TODO change when PR lands
 export XBAR_PLUGIN_DIR="$HOME/Library/Application Support/xbar/plugins"
@@ -241,13 +248,6 @@ case "$OSTYPE" in
 		# is needed so that won't need `sudo` for `n` / `npm`
 		export N_PREFIX="$HOMEBREW_PREFIX"
 
-		# begin load nvm
-		export NVM_DIR="$HOME/.config/nvm"
-		[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-		[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-		# end load nvm
-		# (see also ~/.zshrc)
-
 		if command -v "/usr/local/bin/ssh-askpass" &>/dev/null; then
 			export SUDO_ASKPASS="/usr/local/bin/ssh-askpass"
 		fi
@@ -263,10 +263,19 @@ case "$OSTYPE" in
 		#export PATH="/usr/local/opt/python/libexec/bin:$PATH"
 		#export PATH="$PATH:$HOME/Library/Python/3.8/bin"
 		#export PATH="$PATH:/usr/local/opt/python@3.9/libexec/bin"
-		export PATH="$PATH:$HOME/Library/Python/3.9/bin"
+		#export PATH="$PATH:$HOME/Library/Python/3.9/bin"
+		for d in $HOME/Library/Python/*/bin; do
+			export PATH="$d:$PATH"
+		done
 
 		# https://docs.brew.sh/Homebrew-and-Python#site-packages-and-the-pythonpath
 		#export PYTHONPATH="$(brew --prefix)/lib/python3.9/site-packages:$PYTHONPATH"
+
+		# python with pyenv.
+		# see https://github.com/pyenv/pyenv-virtualenv/issues/387#issuecomment-850839749
+		eval "$(pyenv init --path)"
+		eval "$(pyenv init -)"
+		eval "$(pyenv virtualenv-init -)"
 
 		# END PYTHON
 	  
@@ -349,7 +358,10 @@ command -v yarn &>/dev/null && {
 	export PATH="$NODE_PATH/node_modules/.bin:$PATH"
 
 	export PATH="$(yarn global bin):$PATH"
+
 }
+# stupid corepack keeps modifying package.json
+export COREPACK_ENABLE_AUTO_PIN=0
 
 # pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"
@@ -358,6 +370,11 @@ export PATH="$PNPM_HOME:$PATH"
 
 [ -f ~/yarn-completion.bash ] && . ~/yarn-completion.bash
 [ -f "$CARGO_HOME/env" ] && . "$CARGO_HOME/env"
+
+# ruby user install gems path
+if which ruby >/dev/null && which gem >/dev/null; then
+	export PATH="$(ruby -r rubygems -e 'puts Gem.user_dir')/bin:$PATH"
+fi
 
 case "$OSTYPE" in
   solaris*) ;;

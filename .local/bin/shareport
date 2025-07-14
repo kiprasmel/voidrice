@@ -12,15 +12,24 @@ examples:
     shareport 3000 root@example.com 6000
     shareport 3000 root@example.com 6000 -fN
 
+env vars:
+    INTAKE=0   set to non-zero value to intake port from server
+               and make available locally, instead of default opposite behavior.
 "
 test -z "$1" && {
 	>&2 printf "$USAGE"
 	exit 1
 }
 
+INTAKE="${INTAKE:-0}"
+
 run() {
 	set -x
-	ssh -R "$remote_port":localhost:"$local_port" "$remote" $*
+	if test "$INTAKE" -ne 0; then
+		ssh -L "$remote_port":localhost:"$local_port" "$remote" $*
+	else
+		ssh -R "$remote_port":localhost:"$local_port" "$remote" $*
+	fi
 	set +x
 }
 

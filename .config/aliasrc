@@ -16,6 +16,7 @@ alias ka="killall" \
 	hogs-docker='docker stats --format "table {{.CPUPerc}}\t{{.Name}}" --no-stream | grep -v "CPU\|0.00" | sort -nr | head -n 10' \
 	alp="alpine" \
 	mp="multipass" \
+	mt="neomutt" \
 	vm="multipass" \
 	vms="multipass shell" \
 	r="ranger" \
@@ -39,14 +40,13 @@ alias ka="killall" \
 	lsd="lsd --group-dirs first --classify --icon-theme unicode" \
 	lcd="lsd --icon-theme fancy" \
 	lad="lsd -la --icon-theme fancy" \
-	lld="lad" \
 	l1d="lsd --classic --icon never -1" \
 	quit="exit" \
 	qq="exit" \
 	cls="clear" \
 	c.="code . && exit" \
 	gpgkeys="gpg --list-secret-keys --keyid-format LONG" \
-	gpgpub="gpg --armor --export $*" \
+	gpgexport="gpg --armor --export $*" \
 	gpgreload="gpg-connect-agent reloadagent /bye" \
 	yv="yarn version" \
 	ref="shortcuts >/dev/null; source ~/.config/shortcutrc" \
@@ -67,7 +67,6 @@ which python >/dev/null 2>&1 || alias python="python3"
 # Verbosity and settings that you pretty much just always are going to want.
 alias \
 	batt="cat /sys/class/power_supply/BAT?/capacity" \
-	cp="cp -v" \
 	mv="mv -v" \
 	mkd="mkdir -pv" \
 	yta="yt -x -f bestaudio/best" \
@@ -175,24 +174,45 @@ __gitwrap() {
 }
 
 git() {
-	__gitwrap $*
+	__gitwrap "$@"
 }
 compdef git="git"
 
 g() {
-	__gitwrap $*
+	__gitwrap "$@"
 }
 compdef g="git"
 
 gnp() {
-	__gitwrap --no-pager $*
+	__gitwrap --no-pager "$@"
 }
 compdef gnp="git"
 
 config() {
-	__gitwrap --git-dir="$HOME/.dotfiles/" --work-tree="$HOME" $*
+	__gitwrap --git-dir="$HOME/.dotfiles/" --work-tree="$HOME" "$@"
 }
 compdef config="git"
+
+
+
+# jujutsu
+# https://github.com/martinvonz/jj
+j() {
+	jj "$@"
+}
+
+# uncommited changes in directory
+uncommited-in-dir() {
+	DIR="${1:-.}"
+
+	for i in "$DIR"/*; do
+		test -d $i || continue
+		cd $i
+		echo "$i"
+		git status || :
+		cd ..
+	done
+}
 
 # clipboard
 case "$OSTYPE" in
@@ -214,6 +234,9 @@ primtoclip()  { printf "$(pbpasteprim)" | clip   }
 primtocopy()  { printf "$(pbpasteprim)" | clip   }
 p2c()         { printf "$(pbpasteprim)" | clip   }
 
+knc() {
+	kill -9 $(pbpaste)
+}
 
 cg() {
 	case "$OSTYPE" in
@@ -274,6 +297,7 @@ gcom() { __gitwrap com $* }
 gcof() { __gitwrap cof $* }
 gcob() { __gitwrap co -b $* }
 gb() { __gitwrap b $* }
+gbl() { __gitwrap bl $* }
 gbd() { __gitwrap bd $* }
 gba() { __gitwrap ba $* }
 gbt() { __gitwrap bt $* }
@@ -291,6 +315,11 @@ griomw() { __gitwrap riomw $* }
 griofw() { __gitwrap riofw $* }
 grium() { __gitwrap rium $* }
 grmbp() { __gitwrap rmbp $* }
+grd() { g rd $* }
+grad() { g rad $* }
+gda() { g da $* }
+gd3() { g d3 $* }
+
 grgrep() { __gitwrap rgrep $* }
 gl() { __gitwrap l $* }
 glg() { __gitwrap lg $* }
@@ -380,6 +409,9 @@ gj() { __gitwrap j $* }
 # git done.
 
 
+# docker
+dps() { docker ps $* }
+
 
 # alias k="kubectl"
 kg() { k get $* }
@@ -398,8 +430,9 @@ kdp() { k describe pod $* }
 kdd() { k describe deploy $* }
 
 y() { yarn $* }
-yd() { yarn dev $* || yarn develop $* || yarn start $* }
+yd() { yarn dev $* }
 yy() { yd $* }
+ys() { yarn start $* }
 yb() { y build $* }
 yw() { y watch $* }
 ya() { y add $* }
@@ -419,15 +452,18 @@ rr() {
 
 # vscode
 c() {
-	code $*
+	cursor $*
 }
-
 compdef c="code"
+
+cu() {
+	cursor "$@"
+}
+compdef cu="code"
 
 ci() {
 	code-insiders $*
 }
-
 compdef ci="code"
 
 drag() {
@@ -612,7 +648,8 @@ sa() { ssh-add $* }
 
 ba() { bat -P $* }
 
-doc() { docker-compose $* }
+#doc() { docker-compose $* }
+alias doc="doctl"
 
 kwsupd() {
 	yarn global add @pipedrive/k8s-workstation@latest
@@ -838,8 +875,17 @@ ff_merge() {
 	printf "\n$OUTFILE\n\n"
 }
 
+ff_encodeyt() {
+	IN="$1"
+	shift
+	OUT="output.mkv"
+
+	ffmpeg -i "$IN" -c:v libx264 -preset slow -crf 18 -c:a aac -b:a 192k -pix_fmt yuv420p "$OUT"
+}
+
 # disk waste
 
+NCDU_LAST_SCAN=
 ncduscan() {
 	from="${1:-/}"
 
@@ -855,14 +901,36 @@ ncduscan() {
 	sudo ncdu -e --confirm-quit -1o- "$from" | gzip > "$outfile"
 
 	echo "$outfile"
+	NCDU_LAST_SCAN="$outfile"
 }
 ncduview() {
-	zcat "$@" | ncdu -e -f-
+	if test $# -gt 0; then
+		#zcat "$@" | ncdu -e -f-
+		cat "$@" | gunzip | ncdu -e -f-
+	elif test -n "$NCDU_LAST_SCAN"; then
+		#zcat "$NCDU_LAST_SCAN" | ncdu -e -f-
+		cat "$NCDU_LAST_SCAN" | gunzip | ncdu -e -f-
+	else
+		>&2 printf "view what?\n"
+		return 1
+	fi
 }
 
 prune_docker() {
-	sudo docker image  prune -a "$@"
-	sudo docker system prune -a "$@"
+	docker image  prune -a "$@"
+	docker system prune -a "$@"
+	docker builder prune "$@"
+}
+
+prune_docker_logs() {
+	test $# -gt 0 || {
+		>&2 echo "container name required."
+		return 1
+	}
+
+	CONTAINER="$1"
+	shift
+	truncate -s 0 $(docker inspect --format='{{.LogPath}}' "$CONTAINER")
 }
 
 prune_journal() {
@@ -872,5 +940,43 @@ prune_journal() {
 restrict_journal() {
 	sudo printf "\nSystemMaxUse=100M\n" >> "/etc/systemd/journald.conf"
 	sudo systemctl restart systemd-journald
+}
+
+remove_older_than() {
+	test $# -eq 1 || {
+		>&2 echo "older than DAYS arg required."
+		exit 1
+	}
+
+	DAYS=$1
+	shift
+
+	du -h . --time -d1 | awk -v cutoff=$(node -pe "new Date(Date.now() - $DAYS * 24 * 60 * 60 * 1000).toISOString().split('T')[0]") '$2 < cutoff {print $NF}' | xargs -I {} rm -rf {}
+}
+
+prune_brew() {
+	brew cleanup
+}
+
+prune_go() {
+	go clean -cache
+}
+
+prune_yarn() {
+	yarn cache clean "$@"
+}
+
+# math
+
+max() {
+	node -r 'fs' -pe 'fs.readFileSync(0).toString().split("\n").map(x => Number(x.split(" ").slice(-1)[0].trim())).filter(x => !Number.isNaN(x)).reduce((acc, curr) => Math.max(acc, curr), 0)'
+}
+min() {
+	node -r 'fs' -pe 'fs.readFileSync(0).toString().split("\n").map(x => Number(x.split(" ").slice(-1)[0].trim())).filter(x => !Number.isNaN(x)).reduce((acc, curr) => Math.min(acc, curr), Infinity)'
+}
+
+# deps
+brewup() {
+	brew update && brew upgrade
 }
 

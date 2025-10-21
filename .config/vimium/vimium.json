@@ -1,0 +1,5 @@
+{
+  "keyMappings": "# https://github.com/philc/vimium#keyboard-bindings\nmap D scrollFullPageDown\nmap U scrollFullPageUp\nunmap ?\nmap | showHelp\nmap <a-tab> visitPreviousTab\nmap <a-`> visitPreviousTab\nunmap >>\nunmap <<\nmap > moveTabRight\nmap < moveTabLeft",
+  "searchEngines": "",
+  "settingsVersion": "2.3"
+}

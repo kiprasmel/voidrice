@@ -32,6 +32,10 @@
 	autocrlf = input
 	safecrlf = warn
 	logAllRefUpdates = true
+[gc]
+	auto = false
+[maintenance]
+	auto = false
 [advice]
 	statusHints =  false # clean git status output
 	detachedHead = false
@@ -214,18 +218,24 @@
 
 	create = !hub create
 
+	cleanpath = "!echo \"$1\" | tr / _ #"
+
 	d = diff
 	dd = !git diff ${GIT_PREFIX:-.}
 	dg = !git diff .
 	ds = diff --staged
+	dss = diff --staged --stat
 	dds = !git diff --staged ${GIT_PREFIX:-.}
 	dst = !git diff --stat
+	dm = !git diff $(git mb-default-branch-r-head)
+	dms = !git dm --stat
 	df = diff FETCH_HEAD
 	da = diff AUTO_MERGE
-	dm = diff AUTO_MERGE
 	d3 = diff3c # http://github.com/kiprasmel/git-diff3c
+	db = default-branch
 	default-branch = !git symbolic-ref refs/remotes/origin/HEAD --short | sed 's@.*/@@g'
 	default-branch-r = symbolic-ref refs/remotes/origin/HEAD --short
+	mb-default-branch-r-head = !git merge-base $(git default-branch-r) @
 
 	e = exec
 	exec = "!exec "
@@ -234,16 +244,20 @@
 	fa = fetch --all
 	farom = !git fa && git rom
 	fariom = !git fa && git riom
-	fariomw = !git fa && git riomw
+	fariomw = fariomwrd
+	fariomwrd = !git fa && git riomw && git rd
 	fd = fetch --unshallow # deep
 	
 	#g =
+	hide = update-index --assume-unchanged
+	unhide = update-index --no-assume-unchanged
+    hidden = !git ls-files -v | grep '^h' | cut -c3-
 	#hop = hop # https://github.com/kiprasmel/voidrice/blob/master/.local/bin/git-hop
 
 	# cope https://github.com/git/git/commit/936d2c9301e41a84a374b98f92777e00d321a2ea
-	ignore = update-index --assume-unchanged
+	ignore = update-index --assume-unchanged # renamed to "hide"
 
-	#j =
+	j = jump # contrib
 	#k =
 
 	# man git-log, "--format", "PRETTY FORMATS"
@@ -266,6 +280,8 @@
 	#n =
 
 	o = browse # https://github.com/tj/git-extras/blob/main/bin/git-browse
+	# open file
+	of = "!git browse origin \"$1\""
 
 	p = push --follow-tags
 	pl = pull
@@ -312,9 +328,28 @@
 	rd = rebase-diff
 
 	rad = range-diff
+	rdo = !git range-diff "origin/$(git sob)...@"
 
 	# https://github.com/kiprasmel/git-reverse-rebase
 	rr = reverse-rebase
+
+	# when a partial branch gets updated, and a current branch that is based upon it,
+	# needs to update its commits, onto the new commits of the partial branch.
+	#
+	# one could do this manually: when in current branch, via "git rebase partial-branch -i",
+	# and manually marking outdated commits (part of old partial branch) as "delete".
+	#
+	# $1 = NEW_BASE, $2 = OLD_BASE, $3 = ME (origin/master)
+	# NEW_BASE is the newly updated partial branch;
+	# OLD_BASE is the old version of partial branch (the commits of which are present in current branch).
+	# ME = current branch
+	#
+	# note: OLD_BASE will be assumed to origin/NEW_BASE - this will be correct
+	# if you haven't pushed the local changes to the remote (hence, the remote still has the old changes).
+	#
+	# the rebase will be: OLD_BASE..ME onto NEW_BASE
+	#
+	restack = !NEW_BASE="$1" OLD_BASE="${2:-origin/$1}" ME="$(git branch --show)" git rebase --interactive --onto "$NEW_BASE" "$OLD_BASE" "$ME"
 
 	# https://github.com/kiprasmel/git-stacked-rebase
 	#stacked-rebase = stacked-rebase
@@ -349,12 +384,29 @@
 	sb = show-branch
 	spo = sparse-checkout
 
+	se = sequence
+	seq = sequence
+
 	t = tag
 	tt = tas
 	tas = tag -a -s
-	#u =
+
+	#u = 
+	# uncommit file $1 from $2=HEAD. will move changes of file from commit into worktree, and update commit to exclude changes of file
+	uncommit = "!git reset \"${2:-@}~\" \"$1\" && git caw #"
+
 	#v =
-	#w =
+	w = worktree
+	wt = worktree
+	wta = worktree add
+	wtr = worktree remove
+	wtab = "!set -xe; echo \"S1 $1, S2 $2\"; test -z \"$(git branch -l \"$1\")\" && git branch --no-track \"$1\" \"${2:-$(git default-branch-r)}\"; git worktree add \"../$(git cleanpath \"$1\")\" \"$1\" #"
+	wtabo = "!f() { set -xe; git wtab \"$@\"; WT_PATH=\"$(cd \"../$(git cleanpath \"$1\")\" && pwd)\"; (unset GIT_DIR GIT_WORK_TREE; $GUI_EDITOR --new-window \"$WT_PATH\"); POST_CREATE_CMD_PATH=\"$HOME/projects/layer2/surfe/app/.codespace/post-create\"; test -f \"$POST_CREATE_CMD_PATH\" && cd \"$WT_PATH\" && \"$POST_CREATE_CMD_PATH\"; }; f"
+	wto = wtabo # TODO: check if worktree already exists, create if no, then open
+	codespace = wtabo # TODO: same as wto
+	c2 = "!f() { set -xe; git wtab \"$@\"; WT_PATH=\"$(cd \"../$(git cleanpath \"$1\")\" && pwd)\"; POST_CREATE_CMD_PATH=\"$HOME/projects/layer2/surfe/app/.codespace/post-create\"; test -f \"$POST_CREATE_CMD_PATH\" && cd \"$WT_PATH\" && \"$POST_CREATE_CMD_PATH\"; $GUI_EDITOR \"$WT_PATH\"; }; f"
+
+
 	#x =
 	#y =
 	#z =

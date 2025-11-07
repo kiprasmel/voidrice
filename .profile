@@ -27,6 +27,7 @@ export PATH="$PATH:$HOME/forkprojects/boomer"
 
 # Default programs:
 export EDITOR="nvim"
+export GUI_EDITOR="cursor"
 export REACT_EDITOR="vscodium"
 export SUDO_EDITOR="vi"
 export TERMINAL="st"
@@ -35,6 +36,7 @@ export BROWSER="firefox-developer-edition"
 export READER="zathura"
 export FILE="lf"
 export STATUSBAR="${LARBSWM}blocks"
+command -v diff-so-fancy >/dev/null && export GIT_PAGER="diff-so-fancy | less --tabs=4 -RFX"
 
 # ~/ Clean-up:
 export XDG_CONFIG_HOME="$HOME/.config"

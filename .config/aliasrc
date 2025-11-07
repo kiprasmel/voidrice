@@ -146,8 +146,6 @@ else
 	}
 fi
 
-command -v diff-so-fancy >/dev/null && export GIT_PAGER="diff-so-fancy | less --tabs=4 -RFX"
-
 # wrap git cmd with extras
 #
 # note - do NOT quote the '$*'!
@@ -158,19 +156,27 @@ command -v diff-so-fancy >/dev/null && export GIT_PAGER="diff-so-fancy | less --
 # if interested why we're putting arguments in arrays
 #
 __gitwrap() {
-	[ -n "$GPG_SIGNING_KEY" ] && local EXTRA_ARGS=("-c" "user.signingkey=$GPG_SIGNING_KEY")
+	local -a EXTRA_ARGS=()
+	local -a GIT_CLI=("/usr/bin/env" "git")
+	local -a ENV_PREFIX=()
 
-	local GIT_CLI
-	#if command -v hub >/dev/null; then
-	#	GIT_CLI=("/usr/bin/env" "hub")
-	#else
-		GIT_CLI=("/usr/bin/env" "git")
-	#fi
+	# pass signing key if provided
+	if [ -n "$GPG_SIGNING_KEY" ]; then
+		EXTRA_ARGS+=("-c" "user.signingkey=$GPG_SIGNING_KEY")
+	fi
 
-	[ -n "$SHOW_GIT_CMD" ] && echo \
-	"${GIT_CLI[@]} ${EXTRA_ARGS[@]} $* \n"
+	# disable pager if agent (will get stuck otherwise)
+	if [ -n "$CURSOR_AGENT" ]; then
+		ENV_PREFIX=("env" "GIT_PAGER=cat" "PAGER=cat")
+		EXTRA_ARGS+=("-c" "core.pager=cat")
+	fi
 
-	${GIT_CLI[@]} ${EXTRA_ARGS[@]} $*
+	if [ -n "$SHOW_GIT_CMD" ]; then
+		printf '%q ' "${ENV_PREFIX[@]}" "${GIT_CLI[@]}" "${EXTRA_ARGS[@]}" "$@"
+		printf '\n'
+	fi
+
+	"${ENV_PREFIX[@]}" "${GIT_CLI[@]}" "${EXTRA_ARGS[@]}" "$@"
 }
 
 git() {
@@ -284,7 +290,8 @@ gpl() { __gitwrap pl $* }
 gf() { __gitwrap f $* }
 gfa() { __gitwrap fa $* }
 gfariom() { __gitwrap fariom $* }
-gfariomw() { __gitwrap farom $* }
+gfariomw() { __gitwrap fariomw $* }
+gfariomwrd() { __gitwrap fariomwrd $* }
 gfarom() { __gitwrap farom $* }
 gc() { __gitwrap c $* }
 gca() { __gitwrap ca $* }
@@ -315,10 +322,10 @@ griomw() { __gitwrap riomw $* }
 griofw() { __gitwrap riofw $* }
 grium() { __gitwrap rium $* }
 grmbp() { __gitwrap rmbp $* }
-grd() { g rd $* }
-grad() { g rad $* }
-gda() { g da $* }
-gd3() { g d3 $* }
+grd() { __gitwrap rd $* }
+grad() { __gitwrap rad $* }
+gda() { __gitwrap da $* }
+gd3() { __gitwrap d3 $* }
 
 grgrep() { __gitwrap rgrep $* }
 gl() { __gitwrap l $* }
@@ -375,6 +382,9 @@ gaf() { __gitwrap af $* }
 gat() { __gitwrap at $* }
 gbp() { __gitwrap bp $* }
 gss() { __gitwrap ss $* }
+gst() { __gitwrap st $* }
+gstp() { __gitwrap stp $* }
+gstuk() { __gitwrap stuk $* }
 gsh() { __gitwrap sh $* }
 gct() { __gitwrap ct $* }
 gctt() { __gitwrap ctt $* }

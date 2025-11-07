@@ -66,6 +66,7 @@ export UNISON="${XDG_DATA_HOME:-$HOME/.local/share}/unison"
 export WEECHAT_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/weechat"
 export MBSYNCRC="${XDG_CONFIG_HOME:-$HOME/.config}/mbsync/config"
 export ELECTRUMDIR="${XDG_DATA_HOME:-$HOME/.local/share}/electrum"
+export CODEX_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/codex"
 
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 # https://wiki.archlinux.org/index.php/.NET_Core#Telemetry
 
@@ -256,23 +257,7 @@ case "$OSTYPE" in
 
 		# BEGIN PYTHON
 
-		# do manually:
-		# brew install pyenv
-		# pyenv install 3.9.7 (atm)
-		# pyenv global 3.9.7
-		# restart
-
-		#export PATH="/usr/local/opt/python/libexec/bin:$PATH"
-		#export PATH="$PATH:$HOME/Library/Python/3.8/bin"
-		#export PATH="$PATH:/usr/local/opt/python@3.9/libexec/bin"
-		#export PATH="$PATH:$HOME/Library/Python/3.9/bin"
-		for d in $HOME/Library/Python/*/bin; do
-			export PATH="$d:$PATH"
-		done
-
-		# https://docs.brew.sh/Homebrew-and-Python#site-packages-and-the-pythonpath
-		#export PYTHONPATH="$(brew --prefix)/lib/python3.9/site-packages:$PYTHONPATH"
-
+		# TODO: is this needed?
 		# python with pyenv.
 		# see https://github.com/pyenv/pyenv-virtualenv/issues/387#issuecomment-850839749
 		eval "$(pyenv init --path)"

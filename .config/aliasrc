@@ -93,8 +93,8 @@ alias \
 	f="$FILE" \
 	v="$EDITOR" \
 	p="pacman" \
-	xi="sudo xbps-install" \
-	xq="xbps-query"
+	xi="sudo xbps-install"
+	#xq="xbps-query"
 	# xr="sudo xbps-remove -R" \
 
 alias \
@@ -249,6 +249,26 @@ cg() {
 		darwin*) pbcopy < .git/COMMIT_EDITMSG ;;
 			  *)   copy   .git/COMMIT_EDITMSG ;;
 	esac
+}
+
+qr() {
+	qrcode $(pbpaste)
+}
+
+qrwifi() {
+	test $# -eq 3 || test $# -eq 2 || {
+		echo "3 or 2 args needed:"
+		echo "1: SSID"
+		echo "2: AUTH_TYPE (WEP/WPA/(empty for nopass))"
+		echo "3: PASSWORD (if not nopass)"
+		return 1
+	}
+
+	SSID="$1";
+	AUTH_TYPE="$2";
+	PASSWORD="$3";
+
+	printf "%s" "WIFI:S:$SSID;T:$AUTH_TYPE;P:$PASSWORD;;" | qrcode "$@"
 }
 
 # calls aliases. See https://github.com/sarpik/voidrice/blob/master/.gitconfig
@@ -987,6 +1007,28 @@ min() {
 
 # deps
 brewup() {
-	brew update && brew upgrade
+	brew update && brew upgrade --greedy
+}
+
+# editors
+
+# turbo schedule + algo
+turbos() {
+	c $pp/turbo-schedule
+	c $pp/itc
+}
+
+# utils
+utils() {
+	c $pp/git-add-files
+}
+
+# surfe
+surfe() {
+	c $sf/app
+	c $sf/mock-server
+	c $sf/extension
+	c $sf/server
+	c $sf/infrastructure
 }
 

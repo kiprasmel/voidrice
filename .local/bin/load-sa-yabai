@@ -1,9 +1,19 @@
 #!/bin/sh
 
+set -eu
+
 echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d " " -f 1) $(which yabai) --load-sa" | sudo tee /private/etc/sudoers.d/yabai
+
+sudo nvram boot-args=-arm64e_preview_abi
 
 sleep 1
 
+# kill applications that interfere & cause secure key input (making skhd useless).
+# can re-enable later, for me works fine.
+pkill -i keepassxc
+
 yabai --restart-service
 skhd --restart-service
+
+echo "note: you need to reboot again (via reboot cli), for nvram cmd to take effect"
 

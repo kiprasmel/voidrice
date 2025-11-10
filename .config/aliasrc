@@ -46,6 +46,7 @@ alias ka="killall" \
 	cls="clear" \
 	c.="code . && exit" \
 	gpgkeys="gpg --list-secret-keys --keyid-format LONG" \
+	gpgkey="gpgexport" \
 	gpgexport="gpg --armor --export $*" \
 	gpgreload="gpg-connect-agent reloadagent /bye" \
 	yv="yarn version" \
@@ -142,7 +143,7 @@ else
 	WARN_OFF_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/.shell-warn-off" 
 	test ! -f "$WARN_OFF_FILE" && {
 		echo "warn: ~/.config/aliasrc: gpg signing key not set."
-		echo "either get via 'gpg -K' and put ID into $_GPG_KEY_FILE, or 'touch $WARN_OFF_FILE'"
+		echo "either get via 'gpg -K' and put its ID (ssb) into $_GPG_KEY_FILE file, or 'touch $WARN_OFF_FILE'"
 	}
 fi
 
@@ -199,6 +200,10 @@ config() {
 }
 compdef config="git"
 
+# resolve merge conflicts in dotfiles via GUI_EDITOR
+comerge() {
+	GIT_WORK_TREE="$HOME" GIT_DIR="$HOME/.dotfiles" $GUI_EDITOR "$HOME"
+}
 
 
 # jujutsu

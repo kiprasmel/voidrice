@@ -10,7 +10,6 @@ cat > "$NOT_BLOAT" <<EOF
 import sys
 from math import *
 from itertools import *
-import numpy as np
 
 sys.ps1 = "λ "
 

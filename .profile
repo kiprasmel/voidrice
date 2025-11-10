@@ -264,9 +264,11 @@ case "$OSTYPE" in
 		#export PATH="$PATH:$HOME/Library/Python/3.8/bin"
 		#export PATH="$PATH:/usr/local/opt/python@3.9/libexec/bin"
 		#export PATH="$PATH:$HOME/Library/Python/3.9/bin"
-		for d in $HOME/Library/Python/*/bin; do
-			export PATH="$d:$PATH"
-		done
+		test -f "$HOME/Library/Python" && {
+			for d in $HOME/Library/Python/*/bin; do
+				export PATH="$d:$PATH"
+			done
+		}
 
 		# https://docs.brew.sh/Homebrew-and-Python#site-packages-and-the-pythonpath
 		#export PYTHONPATH="$(brew --prefix)/lib/python3.9/site-packages:$PYTHONPATH"

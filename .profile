@@ -26,7 +26,7 @@ export PATH="$PATH:$HOME/.mozbuild/git-cinnabar"
 export PATH="$PATH:$HOME/forkprojects/boomer"
 
 # Default programs:
-export EDITOR="nvim"
+export EDITOR="editor-wrapper"
 export GUI_EDITOR="cursor"
 export REACT_EDITOR="vscodium"
 export SUDO_EDITOR="vi"

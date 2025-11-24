@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+AGENT_STUCK_MESSAGE="\
+fatal: you called a command, and it ended up invoking an interactive \$EDITOR.
+you are an agent, and you cannot edit the file via an interactive \$EDITOR, so you would be completely stuck.
+
+however, this has been detected, so the interactive \$EDITOR won't be invoked.
+you should investigate why this happened, and run your command so that the interactive \$EDITOR won't get invoked.
+
+common scenarios that invoke the interactive \$EDITOR, that you may have ran into:
+- you ran 'git commit' without a '--message' flag, or without providing 'EDITOR=<script>' or 'EDITOR=true'
+    - remedy: provide the commit message, or the commit message editor script (path or inline script in the var or true if no editing needed).
+
+- you ran 'git rebase --interactive'
+    - remedy: run 'git-rebase-with-pause <rebase args...>',
+      and edit the printed git-rebase-todo file yourself,
+      then run 'git rebase --continue'.
+    - alternative remedy: if no editing needed, run 'EDITOR=true git rebase --interactive' to skip editing.
+
+- you ran 'git rebase --continue' with un-committed changes left
+    - remedy: commit the changes, or run 'EDITOR=<script|true> git rebase --continue'.
+
+"
+
+stuck_helper() {
+	>&2 echo "$AGENT_STUCK_MESSAGE"
+	exit 1
+}
+
+# if agentic mode, obviously can't edit
+if [ -n "$CURSOR_AGENT" ]; then
+	stuck_helper
+else
+	nvim "$@"
+fi
+

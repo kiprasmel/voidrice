@@ -57,8 +57,6 @@
 	signoff = true
 [stash]
 	showIncludeUntracked = true
-[gpg]
-	program = gpg2
 [commit]
 	verbose = true
 	gpgSign = true

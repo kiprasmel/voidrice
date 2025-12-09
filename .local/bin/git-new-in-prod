@@ -1,0 +1,26 @@
+#!/bin/sh
+
+MASTER="origin/main"
+PROD="origin/production"
+
+MERGE_BASE="$(git merge-base $MASTER $PROD)"
+NEW_COMMITS_RANGE="$MERGE_BASE..$MASTER"
+
+AUTHORS="$(git log "$NEW_COMMITS_RANGE" --format="%an" | sort -u)"
+
+INFO="\
+fetch yourself.
+
+authors:
+
+$AUTHORS
+
+PR title:
+
+"
+
+COMBINED_COMMITS="$(git log "$NEW_COMMITS_RANGE" --format="%s" | awk '{printf "%s%s", sep, $0; sep="; "} END {print ""}')"
+PR_TITLE="[RELEASE] $COMBINED_COMMITS"
+
+printf "%s" "$INFO" >&2
+printf "%s\n" "$PR_TITLE"

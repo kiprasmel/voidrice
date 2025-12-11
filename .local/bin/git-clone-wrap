@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+test -n "${DEBUG:-}" && set -x
+
+#cd \"${GIT_PREFIX:-.}\" git clone --filter=blob:none --no-checkout $* || hub clone --filter=blob:none --no-checkout $*
+
+git_clone_wrap() {
+	ARGV=()
+
+	while test $# -gt 0; do
+		case "$1" in
+			--ssh)
+				shift
+				export GIT_SSH_COMMAND="ssh -i \"$HOME/.ssh/$1\" -o IdentitiesOnly=yes"
+				shift
+				;;
+			*)
+				ARGV+=("$1")
+				shift
+				;;
+		esac
+	done
+
+	# cd needed in case inside git repo:
+	# without it would place cloned repo in repo root dir.
+	cd "${GIT_PREFIX:-.}"
+
+	# capture stderr, only show if all attempts fail
+	local stderr_file
+	stderr_file=$(mktemp)
+
+	# extract progress reporting from stderr, show live
+	filter_stderr() {
+		local char="" line=""
+		while IFS= read -r -n1 char || [ -n "$line" ]; do
+			case "$char" in
+				$'\r'|$'\n'|'')
+					[ -z "$line" ] && continue
+					case "$line" in
+						Cloning*|remote:*|Receiving*|Resolving*|Updating*|Checking*|Enumerating*|Counting*|Compressing*|Unpacking*|*%*)
+							printf '%s%s' "$line" "${char:-$'\n'}" >&2 ;;
+						*)
+							printf '%s\n' "$line" >>"$stderr_file" ;;
+					esac
+					line="" ;;
+				*)
+					line+="$char" ;;
+			esac
+		done
+	}
+
+	with_clean_stderr() {
+		"$@" 2> >(filter_stderr)
+	}
+
+	{
+		with_clean_stderr git clone --progress "$(https_to_ssh_url "${ARGV[0]}")" "${ARGV[@]:1}" || \
+		with_clean_stderr git clone --progress "git@github.com:$(git config user.github)/${ARGV[0]}" "${ARGV[@]:2}" || \
+		with_clean_stderr git clone --progress "git@github.com:${ARGV[0]}" "${ARGV[@]:2}" || \
+		with_clean_stderr git clone --progress "${ARGV[@]}" || \
+		with_clean_stderr hub clone --progress "${ARGV[@]}"
+	} \
+	&& { echo "done" >&2; rm -f "$stderr_file"; return 0; } \
+	|| { echo "failed. see errors in" >&2; echo "$stderr_file"; return 1; }
+}
+
+https_to_ssh_url() {
+	echo "$1" | sed 's#.*://#git@#g; s#/#:#'
+}
+
+git_clone_wrap "$@"
+exit $?

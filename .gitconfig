@@ -26,6 +26,7 @@
 	name = Kipras Melnikovas
 	email = kipras@kipras.org
 	# signingkey is $GPG_SIGNING_KEY
+	github = kiprasmel
 [core]
 	# editor is $EDITOR
 	# pager  is $GIT_PAGER
@@ -209,9 +210,7 @@
 
 	cfg = config --global --edit
 
-	# cd needed in case inside git repo:
-	# without it would place cloned repo in repo root dir.
-	cl = "!cd \"${GIT_PREFIX:-.}\" && git clone $* || hub clone $* #"
+	cl = "!git-clone-wrap"
 	clf = "!cd \"${GIT_PREFIX:-.}\" git clone --filter=blob:none --no-checkout $* || hub clone --filter=blob:none --no-checkout $*"
 
 	create = !hub create

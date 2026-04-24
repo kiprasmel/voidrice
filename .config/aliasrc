@@ -11,7 +11,6 @@ alias ka="killall" \
 	sd="shutdown" \
 	sad="shutdown 0" \
 	co="config" \
-	cl="clipboard" \
 	d="docker" \
 	hogs-docker='docker stats --format "table {{.CPUPerc}}\t{{.Name}}" --no-stream | grep -v "CPU\|0.00" | sort -nr | head -n 10' \
 	alp="alpine" \
@@ -147,6 +146,22 @@ else
 	}
 fi
 
+i() {
+	infra "$@"
+}
+ie() {
+	infra exec "$@"
+}
+ix() {
+	infra exec "$@"
+}
+ic() {
+	infra cd "$@"
+}
+icd() {
+	infra cd "$@"
+}
+
 # wrap git cmd with extras
 #
 # note - do NOT quote the '$*'!
@@ -161,15 +176,18 @@ __gitwrap() {
 	local -a GIT_CLI=("/usr/bin/env" "git")
 	local -a ENV_PREFIX=()
 
-	# pass signing key if provided
-	if [ -n "$GPG_SIGNING_KEY" ]; then
-		EXTRA_ARGS+=("-c" "user.signingkey=$GPG_SIGNING_KEY")
-	fi
-
 	# disable pager if agent (will get stuck otherwise)
-	if [ -n "$CURSOR_AGENT" ]; then
+	if [ -n "$CURSOR_AGENT" ] || [ -n "$CLAUDECODE" ]; then
 		ENV_PREFIX=("env" "GIT_PAGER=cat" "PAGER=cat")
 		EXTRA_ARGS+=("-c" "core.pager=cat")
+		EXTRA_ARGS+=("-c" "commit.gpgsign=false")
+	else
+		# only in non-agent mode:
+
+		# pass signing key if provided
+		if [ -n "$GPG_SIGNING_KEY" ]; then
+			EXTRA_ARGS+=("-c" "user.signingkey=$GPG_SIGNING_KEY")
+		fi
 	fi
 
 	if [ -n "$SHOW_GIT_CMD" ]; then
@@ -204,7 +222,6 @@ compdef config="git"
 comerge() {
 	GIT_WORK_TREE="$HOME" GIT_DIR="$HOME/.dotfiles" $GUI_EDITOR "$HOME"
 }
-
 
 # jujutsu
 # https://github.com/martinvonz/jj
@@ -288,12 +305,17 @@ cop() { config p $* }
 coc() { config c $* }
 cod() { config d $* }
 gso() { __gitwrap so $* }
+gsob() { __gitwrap sob $* }
 gsos() { __gitwrap sos $* }
 gsom() { __gitwrap som $* }
 gsod() { __gitwrap sod $* }
+gdb() { __gitwrap db $* }
+gdbs() { __gitwrap dbs $* }
+gsods() { __gitwrap sods $* }
 gsoc() { __gitwrap soc $* }
 gd() { __gitwrap d $* }
 gds() { __gitwrap ds $* }
+gdst() { __gitwrap dst $* }
 gdd() { __gitwrap dd $* }
 ggg() { __gitwrap s $* }
 gggg() { __gitwrap s $* }
@@ -428,6 +450,7 @@ gprmee() { __gitwrap prmee $* }
 gprmeed() { __gitwrap prmeed $* }
 gprmeew() { __gitwrap prmeew $* }
 gprmeedw() { __gitwrap prmeedw $* }
+gcs() { __gitwrap cs $* }
 
 gsync() { __gitwrap sync $* }
 gsy() { gsync $* }
@@ -487,7 +510,7 @@ rr() {
 
 # vscode
 c() {
-	cursor $*
+	cursor --enable-proposed-api kiprasmel.terminal-title-context "$@"
 }
 compdef c="code"
 
@@ -500,6 +523,11 @@ ci() {
 	code-insiders $*
 }
 compdef ci="code"
+
+cl() {
+	#echo -ne "\033]0;claude\007"
+	claude --dangerously-skip-permissions "$@"
+}
 
 drag() {
 	dragon-drag-and-drop $*
@@ -1012,7 +1040,7 @@ min() {
 
 # deps
 brewup() {
-	brew update && brew upgrade --greedy
+	brew update && brew upgrade --greedy "$@"
 }
 
 # editors
@@ -1028,12 +1056,11 @@ utils() {
 	c $pp/git-add-files
 }
 
-# surfe
-surfe() {
-	c $sf/app
-	c $sf/mock-server
-	c $sf/extension
-	c $sf/server
-	c $sf/infrastructure
+# laptop go sleep in N minutes
+sleep_in() {
+	sudo shutdown -s "$1"
+}
+sleep_cancel() {
+	sudo killall shutdown
 }
 

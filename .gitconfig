@@ -43,6 +43,9 @@
 	addIgnoredFile = false
 [rerere]
 	enabled = true
+[blame]
+	# disabled because if the file is not present, blame won't work at all (wtf #TODO)
+	#ignoreRevsFile = .git-blame-ignore-revs
 [imap]
 	host = mail.kipras.org
 	user = kipras@kipras.org
@@ -60,7 +63,7 @@
 	showIncludeUntracked = true
 [commit]
 	verbose = true
-	gpgSign = true
+	gpgsign = false
 [merge]
 	ff = no # rebase + merge commit
 	conflictStyle = zdiff3
@@ -94,7 +97,8 @@
 	rebase = true # https://git-scm.com/docs/git-config#Documentation/git-config.txt-pullrebase
 	ff = yes
 [push]
-	followTags = true
+	#followTags = true
+	followTags = false
 	#autoSetupRemote = true # git pp instead
 [fetch]
 	parallel = 0 # parallel >1
@@ -179,8 +183,10 @@
 	bl = branch --list --sort=authordate
 	bt = branch --track
 	sob = branch --show-current
-	sod = !git diff "origin"/"$(git sob)" $*
-	sods = !git diff "origin"/"$(git sob)" --stat $*
+	sod = db
+	sods = dbs
+	sodr = !git diff "origin"/"$(git sob)" $*
+	sodrs = !git diff "origin"/"$(git sob)" --stat $*
 	sodp = !git diff "origin"/"$(git parent)" "$(git parent)" $*
 
 	bp = backup
@@ -222,14 +228,14 @@
 	dg = !git diff .
 	ds = diff --staged
 	dss = diff --staged --stat
+	dsst = dss
 	dds = !git diff --staged ${GIT_PREFIX:-.}
 	dst = !git diff --stat
-	dm = !git diff $(git mb-default-branch-r-head)
-	dms = !git dm --stat
+	db = !git diff $(git mb-default-branch-r-head)
+	dbs = !git db --stat
 	df = diff FETCH_HEAD
 	da = diff AUTO_MERGE
 	d3 = diff3c # http://github.com/kiprasmel/git-diff3c
-	db = default-branch
 	default-branch = !git symbolic-ref refs/remotes/origin/HEAD --short | sed 's@.*/@@g'
 	default-branch-r = symbolic-ref refs/remotes/origin/HEAD --short
 	mb-default-branch-r-head = !git merge-base $(git default-branch-r) @
@@ -276,7 +282,10 @@
 
 	#n =
 
-	o = browse # https://github.com/tj/git-extras/blob/main/bin/git-browse
+	# open PR
+	o = !git sopr | xargs open
+	sopr = !gh pr view --json url | jq -e -r .url || gh repo view --json url | jq -r .url | xargs -I{} echo "{}/tree/$(git branch --show-current)" || git browse # https://github.com/tj/git-extras/blob/main/bin/git-browse
+
 	# open file
 	of = "!git browse origin \"$1\""
 
@@ -323,6 +332,7 @@
 
 	# https://github.com/kiprasmel/git-rebase-diff
 	rd = rebase-diff
+	rda = "!git rebase-diff --aggregate"
 
 	rad = range-diff
 	rdo = !git range-diff "origin/$(git sob)...@"
@@ -347,6 +357,10 @@
 	# the rebase will be: OLD_BASE..ME onto NEW_BASE
 	#
 	restack = !NEW_BASE="$1" OLD_BASE="${2:-origin/$1}" ME="$(git branch --show)" git rebase --interactive --onto "$NEW_BASE" "$OLD_BASE" "$ME"
+
+	# will go thru commits 1-by-1. for each, execute $1, and add the changes to the current commit
+	reformat = "!git rebase -i $(git merge-base $(git default-branch-r) HEAD) -x \"$1 && git add . && git commit --amend --no-edit\" -X theirs --empty=drop && git sod -w #"
+	reformatw = "!EDITOR=true git reformat"
 
 	# https://github.com/kiprasmel/git-stacked-rebase
 	#stacked-rebase = stacked-rebase
@@ -397,12 +411,11 @@
 	wt = worktree
 	wta = worktree add
 	wtr = worktree remove
-	wtab = "!set -xe; echo \"S1 $1, S2 $2\"; test -z \"$(git branch -l \"$1\")\" && git branch --no-track \"$1\" \"${2:-$(git default-branch-r)}\"; git worktree add \"../$(git cleanpath \"$1\")\" \"$1\" #"
-	wtabo = "!f() { set -xe; git wtab \"$@\"; WT_PATH=\"$(cd \"../$(git cleanpath \"$1\")\" && pwd)\"; (unset GIT_DIR GIT_WORK_TREE; $GUI_EDITOR --new-window \"$WT_PATH\"); POST_CREATE_CMD_PATH=\"$HOME/projects/layer2/surfe/app/.codespace/post-create\"; test -f \"$POST_CREATE_CMD_PATH\" && cd \"$WT_PATH\" && \"$POST_CREATE_CMD_PATH\"; }; f"
-	wto = wtabo # TODO: check if worktree already exists, create if no, then open
-	codespace = wtabo # TODO: same as wto
-	c2 = "!f() { set -xe; git wtab \"$@\"; WT_PATH=\"$(cd \"../$(git cleanpath \"$1\")\" && pwd)\"; POST_CREATE_CMD_PATH=\"$HOME/projects/layer2/surfe/app/.codespace/post-create\"; test -f \"$POST_CREATE_CMD_PATH\" && cd \"$WT_PATH\" && \"$POST_CREATE_CMD_PATH\"; $GUI_EDITOR \"$WT_PATH\"; }; f"
 
+	# https://github.com/kiprasmel/codespace
+	codespace = "!codespace"
+	cs = !codespace
+	css = !codespace stack
 
 	#x =
 	#y =

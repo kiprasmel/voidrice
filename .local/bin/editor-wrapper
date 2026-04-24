@@ -28,7 +28,7 @@ stuck_helper() {
 }
 
 # if agentic mode, obviously can't edit
-if [ -n "$CURSOR_AGENT" ]; then
+if [ -n "$CURSOR_AGENT" ] || [ -n "$CLAUDECODE" ]; then
 	stuck_helper
 else
 	nvim "$@"

@@ -39,7 +39,8 @@ tp $HOME/testprojects
 wp $HOME/workprojects
 rp $HOME/reviewprojects
 misi $HOME/workprojects/misi
-sf $HOME/surfe
+si $HOME/sintra
+sintra $HOME/sintra
 prp $HOME/privateprojects
 pri $HOME/privateprojects/interactio
 prip $HOME/privateprojects/interactio/panel
@@ -64,7 +65,6 @@ biz $HOME/projects/biz
 nn 	$HOME/projects/neural-nets-from-scratch
 l2  $HOME/projects/layer2
 gi $HOME/forkprojects/git
-infra $HOME/infra
 fra $HOME/infra
 ra $HOME/infra
 ral $HOME/infra/local
@@ -75,6 +75,8 @@ vv  ${XDG_VIDEOS_DIR:-$HOME/Videos}
 cf	${XDG_CONFIG_HOME:-$HOME/.config}
 cfc ${XDG_CONFIG_HOME:-$HOME/.config}/cputils
 yab ${XDG_CONFIG_HOME:-$HOME/.config}/yabai
+scy ${XDG_CONFIG_HOME:-$HOME/.config}/yabai/scripts
+cfysc ${XDG_CONFIG_HOME:-$HOME/.config}/yabai/scripts
 ca ${XDG_CACHE_HOME:-$HOME/.cache}
 bb  $HOME/.cache/builds
 sc	$HOME/.local/bin
@@ -105,12 +107,14 @@ notes $HOME/projects/notes-private
 
 lds $HOME/projects/local-dev-server
 dg $HOME/projects/depgraph
+db $HOME/projects/devbot
+dbx $HOME/projects/devbox
+
 
 # books
 csa $HOME/private/books/csapp
 csap $HOME/private/books/csapp
 csapp $HOME/private/books/csapp
-cs $HOME/csapp
 
 s $HOME/school
 sw $HOME/school/web

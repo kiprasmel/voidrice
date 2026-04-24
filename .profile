@@ -89,85 +89,6 @@ export MOZ_USE_XINPUT2="1"		# Mozilla smooth scrolling/touchpads.
 export AWT_TOOLKIT="MToolkit wmname LG3D"	#May have to install wmname
 export _JAVA_AWT_WM_NONREPARENTING=1	# Fix for Java applications in dwm
 
-# This is the list for lf icons:
-export LF_ICONS="di=📁:\
-fi=📃:\
-tw=🤝:\
-ow=📂:\
-ln=⛓:\
-or=❌:\
-ex=🎯:\
-*.txt=✍:\
-*.mom=✍:\
-*.me=✍:\
-*.ms=✍:\
-*.png=🖼:\
-*.webp=🖼:\
-*.ico=🖼:\
-*.jpg=📸:\
-*.jpe=📸:\
-*.jpeg=📸:\
-*.gif=🖼:\
-*.svg=🗺:\
-*.tif=🖼:\
-*.tiff=🖼:\
-*.xcf=🖌:\
-*.html=🌎:\
-*.xml=📰:\
-*.gpg=🔒:\
-*.css=🎨:\
-*.pdf=📚:\
-*.djvu=📚:\
-*.epub=📚:\
-*.csv=📓:\
-*.xlsx=📓:\
-*.tex=📜:\
-*.md=📘:\
-*.r=📊:\
-*.R=📊:\
-*.rmd=📊:\
-*.Rmd=📊:\
-*.m=📊:\
-*.mp3=🎵:\
-*.opus=🎵:\
-*.ogg=🎵:\
-*.m4a=🎵:\
-*.flac=🎼:\
-*.wav=🎼:\
-*.mkv=🎥:\
-*.mp4=🎥:\
-*.webm=🎥:\
-*.mpeg=🎥:\
-*.avi=🎥:\
-*.mov=🎥:\
-*.mpg=🎥:\
-*.wmv=🎥:\
-*.m4b=🎥:\
-*.flv=🎥:\
-*.zip=📦:\
-*.rar=📦:\
-*.7z=📦:\
-*.tar.gz=📦:\
-*.z64=🎮:\
-*.v64=🎮:\
-*.n64=🎮:\
-*.gba=🎮:\
-*.nes=🎮:\
-*.gdi=🎮:\
-*.1=ℹ:\
-*.nfo=ℹ:\
-*.info=ℹ:\
-*.log=📙:\
-*.iso=📀:\
-*.img=📀:\
-*.bib=🎓:\
-*.ged=👪:\
-*.part=💔:\
-*.torrent=🔽:\
-*.jar=♨:\
-*.java=♨:\
-"
-
 [ ! -f ${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc ] && setsid -f "$HOME/.local/bin/shortcuts" >/dev/null 2>&1
 
 # xampp
@@ -230,7 +151,26 @@ export PATH="$PATH:$GOPATH/bin"
 # TODO change when PR lands
 export XBAR_PLUGIN_DIR="$HOME/Library/Application Support/xbar/plugins"
 
-# https://stackoverflow.com/a/18434831
+# https://github.com/kiprasmel/codespace
+export CODESPACE_CONFIG_ROOT="$HOME/projects/layer2"
+export CS_DEFAULT_CREATE_TYPE="stack"
+
+# npm package bs - do not build 'sharp' from source, just because i have libvips installed
+export SHARP_IGNORE_GLOBAL_LIBVIPS=1
+
+# disable claude code auto-updater
+export DISABLE_AUTOUPDATER=1
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+
+##########################
+#                        #
+#  BEGIN SYSTEM-SPECIFC  #
+#                        #
+##########################
 case "$OSTYPE" in
   solaris*) echo "SOLARIS" ;;
   darwin*)
@@ -260,9 +200,9 @@ case "$OSTYPE" in
 		# TODO: is this needed?
 		# python with pyenv.
 		# see https://github.com/pyenv/pyenv-virtualenv/issues/387#issuecomment-850839749
-		eval "$(pyenv init --path)"
-		eval "$(pyenv init -)"
-		eval "$(pyenv virtualenv-init -)"
+		#eval "$(pyenv init --path)"
+		#eval "$(pyenv init -)"
+		#eval "$(pyenv virtualenv-init -)"
 
 		# END PYTHON
 	  
@@ -283,7 +223,9 @@ case "$OSTYPE" in
  		# export PATH="/usr/local/opt/gnu-time/libexec/gnubin:$PATH"
 		
 		#export PATH="/Applications/Firefox Developer Edition.app/Contents/MacOS/:$PATH"
-		export BROWSER="/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox" # additional escape characters apparently still needed because of later evaluation
+		#export BROWSER="/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox" # additional escape characters apparently still needed because of later evaluation
+		export BROWSER="/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome"
+
 
 		#export PATH="/Applications/Google Chrome.app/Contents/MacOS:$PATH"
 		#BROWSER="/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome" # additional escape characters apparently still needed because of later evaluation
@@ -383,3 +325,4 @@ esac
 ##                              ##
 ## DO NOT ADD STUFF BELOW THIS  ##
 ##                              ##
+

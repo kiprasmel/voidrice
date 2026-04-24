@@ -1,0 +1,8 @@
+#!/bin/sh
+
+if [ -n "$VERBOSE" ]; then
+	GIT_SEQUENCE_EDITOR=git-rebase-editor-pause git rebase -i "$@"
+else
+	GIT_SEQUENCE_EDITOR=git-rebase-editor-pause git rebase -i "$@" 2>/dev/null
+fi
+

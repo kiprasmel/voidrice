@@ -118,6 +118,9 @@ stty erase "^?"
 # (https://github.com/tj/git-extras)
 [ -f "$HOME/.config/zsh/completions/git-extras-completion.zsh" ] && source "$HOME/.config/zsh/completions/git-extras-completion.zsh"
 
+# bun completions
+[ -s "/Users/kipras/.bun/_bun" ] && source "/Users/kipras/.bun/_bun"
+
 # Load aliases and shortcuts if existent.
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc"
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutenvrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shortcutenvrc"
@@ -345,6 +348,9 @@ bindkey -s '^f' 'cd "$(dirname "$(fzf)")"\n'
 bindkey '^[[P' delete-char
 
 ### tmux. prefix with space to not go into history
+#bindkey -s '^s' ' tmux a -t 0 2>/dev/null || tmux new -s 0\n'
+#bindkey -s -M viins '^s'  ' tmux a -t 0 2>/dev/null || tmux new -s 0\n'
+#bindkey -s -M vicmd '^s' ' tmux a -t 0 2>/dev/null || tmux new -s 0\n'
 bindkey -s '^s' ' tmux a -t 0 2>/dev/null || tmux new -s 0\n'
 bindkey -s -M viins '^s'  ' tmux a -t 0 2>/dev/null || tmux new -s 0\n'
 bindkey -s -M vicmd '^s' ' tmux a -t 0 2>/dev/null || tmux new -s 0\n'
@@ -589,4 +595,5 @@ if [ -z "$TMUX" ] && [ "x$noStartTime" = "x" ]; then
 fi
 
 test -z "$RUN_PROFILER" || zprof
+
 

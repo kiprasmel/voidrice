@@ -21,6 +21,7 @@ PR title:
 
 COMBINED_COMMITS="$(git log "$NEW_COMMITS_RANGE" --format="%s" | awk '{printf "%s%s", sep, $0; sep="; "} END {print ""}')"
 PR_TITLE="[RELEASE] $COMBINED_COMMITS"
+SLACK_MESSAGE="[release {repo}] {pr_url} :vaziuojam:? (reik approve) {@authors}" # TODO
 
 printf "%s" "$INFO" >&2
 printf "%s\n" "$PR_TITLE"

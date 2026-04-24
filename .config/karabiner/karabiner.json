@@ -1,4 +1,5 @@
 {
+    "global": { "show_in_menu_bar": false },
     "profiles": [
         {
             "complex_modifications": {
@@ -82,16 +83,16 @@
                     },
                     "simple_modifications": [
                         {
+                            "from": { "key_code": "grave_accent_and_tilde" },
+                            "to": [{ "key_code": "grave_accent_and_tilde" }]
+                        },
+                        {
                             "from": { "key_code": "left_command" },
                             "to": [{ "key_code": "left_option" }]
                         },
                         {
                             "from": { "key_code": "left_option" },
                             "to": [{ "key_code": "left_command" }]
-                        },
-                        {
-                            "from": { "key_code": "grave_accent_and_tilde" },
-                            "to": [{ "key_code": "grave_accent_and_tilde" }]
                         }
                     ]
                 }

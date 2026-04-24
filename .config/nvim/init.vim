@@ -51,7 +51,7 @@ Plug 'tpope/vim-commentary'
 "Plug 'https://github.com/rdnetto/YCM-Generator', { 'branch': 'stable'} "  
 "Plug 'https://github.com/jalvesaq/nvim-r.git'
 "Plug 'editorconfig/editorconfig-vim'
-Plug 'wakatime/vim-wakatime' " self-hosted, see https://github.com/muety/wakapi
+"Plug 'wakatime/vim-wakatime' " self-hosted, see https://github.com/muety/wakapi
 
 Plug 'https://github.com/tpope/vim-repeat'
 

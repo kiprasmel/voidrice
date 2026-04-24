@@ -3,7 +3,7 @@
 USAGE="\
 usage:
 
-shareport local_port [remote='prod'] [remote_port=2020] [-- [SSH OPT]...]
+shareport local_port [remote='prod'] [remote_port=9999] [-- [SSH OPT]...]
 
 examples:
     shareport 3000
@@ -36,7 +36,7 @@ run() {
 local_port="$1"
 shift
 remote="prod"
-remote_port="2020"
+remote_port="9999"
 
 test $# -gt 0 && case "$1" in
 	--)
@@ -65,4 +65,3 @@ test $# -gt 0 && case "$1" in
 esac
 
 run $*
-

@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import html
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+CSS = r"""
+@page { size: A4 landscape; margin: 11mm; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #17202a; background: white; }
+header { border-bottom: 1px solid #d0d7de; padding-bottom: 10px; margin-bottom: 10px; }
+h1 { font-size: 18px; margin: 0 0 5px; }
+.meta { white-space: pre-wrap; color: #57606a; font-size: 10px; line-height: 1.35; }
+.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0 14px; }
+.summary div { border: 1px solid #d0d7de; border-radius: 6px; padding: 7px; font-size: 10px; background: #f6f8fa; }
+.hunk { break-inside: avoid; page-break-inside: avoid; margin: 0 0 12px; }
+.hunk h2 { font-size: 13px; margin: 0 0 5px; padding: 5px 7px; background: #24292f; color: white; border-radius: 5px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch; }
+.col { border: 1px solid #d0d7de; border-radius: 6px; overflow: hidden; min-width: 0; }
+.label { font-weight: 650; text-transform: uppercase; letter-spacing: .04em; font-size: 9px; padding: 4px 6px; border-bottom: 1px solid #d0d7de; background: #f6f8fa; color: #57606a; }
+pre { margin: 0; padding: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 7.7px; line-height: 1.32; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+.line { padding: 1px 5px; min-height: 10px; }
+.ctx { background: #ffffff; }
+.del { background: #ffebe9; }
+.add { background: #dafbe1; }
+.empty { color: #8c959f; font-style: italic; }
+footer { margin-top: 8px; border-top: 1px solid #d0d7de; padding-top: 6px; color: #57606a; font-size: 9px; }
+"""
+
+
+def run(cmd: list[str], cwd: Path) -> str:
+    try:
+        return subprocess.check_output(cmd, cwd=cwd, text=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as exc:
+        print(exc.output, file=sys.stderr)
+        raise SystemExit(exc.returncode)
+
+
+def git_root() -> Path:
+    return Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip())
+
+
+def split_range(args: argparse.Namespace) -> tuple[str, str]:
+    if args.positional_old or args.positional_new:
+        if not args.positional_file or not args.positional_old or not args.positional_new:
+            raise SystemExit("positional usage: git-diff-pdf file old-committish new-committish")
+        return args.positional_old, args.positional_new
+    if args.range:
+        if ".." not in args.range:
+            raise SystemExit("--range must look like OLD..NEW")
+        old, new = args.range.split("..", 1)
+        if not old or not new:
+            raise SystemExit("--range must include both OLD and NEW")
+        return old, new
+    return args.old, args.new
+
+
+def chrome_path() -> str | None:
+    candidates = [
+        os.environ.get("CHROME_BIN"),
+        shutil.which("google-chrome"),
+        shutil.which("google-chrome-stable"),
+        shutil.which("chromium"),
+        shutil.which("chromium-browser"),
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return candidate
+    return None
+
+
+def hunk_title(hunk: dict) -> str:
+    joined = "\n".join([text for _, text in hunk["new"] + hunk["old"]])
+    rules = [
+        ("Reliability Model", "mv3 reliability model"),
+        ("observation-scoped element refs", "dom refs are observation-scoped"),
+        ("type Verification", "verification semantics"),
+        ("Driver-level success", "verification semantics"),
+        ("browser_task.start", "async task lifecycle"),
+        ("Failure And Edge Cases", "failure and edge cases"),
+        ("untrusted data", "security baseline"),
+    ]
+    for needle, title in rules:
+        if needle in joined:
+            return title
+    return hunk.get("context") or hunk["header"]
+
+
+def parse_diff(diff_text: str) -> list[dict]:
+    hunks: list[dict] = []
+    current = None
+    for line in diff_text.splitlines():
+        if line.startswith("@@"):
+            if current:
+                hunks.append(current)
+            m = re.match(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?: (.*))?", line)
+            current = {"header": line, "context": m.group(5) if m else "", "old": [], "new": []}
+            continue
+        if current is None:
+            continue
+        if line.startswith(("---", "+++", "diff ", "index ")):
+            continue
+        tag = line[:1]
+        text = line[1:] if tag in " +-\\" else line
+        if tag == "-":
+            current["old"].append(("del", text))
+        elif tag == "+":
+            current["new"].append(("add", text))
+        elif tag == " ":
+            current["old"].append(("ctx", text))
+            current["new"].append(("ctx", text))
+    if current:
+        hunks.append(current)
+    return hunks
+
+
+def render_lines(lines: list[tuple[str, str]]) -> str:
+    if not lines:
+        return '<div class="line empty">(no lines)</div>'
+    return "\n".join(
+        f'<div class="line {cls}">{html.escape(text) if text else " "}</div>'
+        for cls, text in lines
+    )
+
+
+def render_html(root: Path, old: str, new: str, file_path: str, out_html: Path, context: int) -> None:
+    diff = run(["git", "diff", f"--unified={context}", old, new, "--", file_path], root)
+    if not diff.strip():
+        raise SystemExit(f"no diff for {file_path} in {old}..{new}")
+
+    hunks = parse_diff(diff)
+    new_commit = run(["git", "rev-parse", "--short", new], root).strip()
+    subject = run(["git", "log", "-1", "--pretty=%s", new], root).strip()
+    stat = run(["git", "diff", "--stat", old, new, "--", file_path], root).strip()
+
+    cards = []
+    for i, hunk in enumerate(hunks, 1):
+        cards.append(
+            f"""
+<section class="hunk">
+  <h2>{i}. {html.escape(hunk_title(hunk))}</h2>
+  <div class="grid">
+    <div class="col before"><div class="label">before ({html.escape(old)})</div><pre>{render_lines(hunk["old"])}</pre></div>
+    <div class="col after"><div class="label">after ({html.escape(new)})</div><pre>{render_lines(hunk["new"])}</pre></div>
+  </div>
+</section>
+"""
+        )
+
+    doc = f"""<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>review diff: {html.escape(file_path)}</title>
+<style>{CSS}</style>
+</head>
+<body>
+<header>
+  <h1>review diff: {html.escape(file_path)}</h1>
+  <div class="meta">range {html.escape(old)}..{html.escape(new)}
+commit {html.escape(new_commit)}: {html.escape(subject)}
+{html.escape(stat)}</div>
+</header>
+<section class="summary">
+  <div><strong>format</strong><br>side-by-side before/after by changed area</div>
+  <div><strong>scope</strong><br>{html.escape(file_path)}</div>
+  <div><strong>generated</strong><br>from git diff {html.escape(old)}..{html.escape(new)}</div>
+</section>
+{''.join(cards)}
+<footer>generated by git-review-diff-pdf</footer>
+</body>
+</html>
+"""
+    out_html.write_text(doc, encoding="utf-8")
+
+
+def render_pdf(html_path: Path, pdf_path: Path) -> None:
+    chrome = chrome_path()
+    if not chrome:
+        print("warning: no chrome/chromium found; wrote html only", file=sys.stderr)
+        return
+    subprocess.check_call(
+        [
+            chrome,
+            "--headless",
+            "--disable-gpu",
+            "--no-pdf-header-footer",
+            f"--print-to-pdf={pdf_path}",
+            html_path.resolve().as_uri(),
+        ]
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Render a reviewer-friendly side-by-side git diff to HTML and PDF.",
+        epilog=(
+            "Examples:\n"
+            "  git-diff-pdf RFC-browser-use.md HEAD^ HEAD\n"
+            "  git-review-diff-pdf RFC-browser-use.md HEAD^ HEAD\n"
+            "  git-review-diff-pdf --file RFC-browser-use.md\n"
+            "  git-review-diff-pdf --range main..HEAD --file docs/rfc.md --out /tmp/rfc-diff\n"
+            "  git-review-diff-pdf --old HEAD~2 --new HEAD --file README.md --open"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("positional_file", nargs="?", help="File path to diff, relative to git root.")
+    parser.add_argument("positional_old", nargs="?", help="Old committish for positional usage.")
+    parser.add_argument("positional_new", nargs="?", help="New committish for positional usage.")
+    parser.add_argument("--file", "-f", help="File path to diff, relative to git root.")
+    parser.add_argument("--range", "-r", help="Git range OLD..NEW. Defaults to HEAD^..HEAD.")
+    parser.add_argument("--old", default="HEAD^", help="Old revision. Ignored if --range is set.")
+    parser.add_argument("--new", default="HEAD", help="New revision. Ignored if --range is set.")
+    parser.add_argument("--out", "-o", help="Output path prefix, without extension. Defaults to ./review-diff-<filename>.")
+    parser.add_argument("--context", "-U", type=int, default=4, help="Context lines per hunk. Default: 4.")
+    parser.add_argument("--html-only", action="store_true", help="Only write HTML, skip PDF rendering.")
+    parser.add_argument("--open", action="store_true", help="Open the PDF or HTML after rendering.")
+    args = parser.parse_args()
+
+    root = git_root()
+    old, new = split_range(args)
+    file_path = args.positional_file or args.file
+    if not file_path:
+        raise SystemExit("missing file. usage: git-diff-pdf file old-committish new-committish")
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "-", file_path).strip("-") or "diff"
+    prefix = Path(args.out) if args.out else Path.cwd() / f"review-diff-{safe_name}"
+    html_path = prefix.with_suffix(".html")
+    pdf_path = prefix.with_suffix(".pdf")
+
+    render_html(root, old, new, file_path, html_path, args.context)
+    print(html_path)
+    target = html_path
+    if not args.html_only:
+        render_pdf(html_path, pdf_path)
+        if pdf_path.exists():
+            print(pdf_path)
+            target = pdf_path
+    if args.open:
+        subprocess.call(["open", str(target)])
+
+
+if __name__ == "__main__":
+    main()

@@ -1029,6 +1029,23 @@ prune_yarn() {
 	yarn cache clean "$@"
 }
 
+prune_xcode() {
+	rm -rf "$HOME/Library/Developer/Xcode/DerivedData"
+}
+
+prune_mac() {
+	prune_brew
+	prune_xcode
+}
+
+prune_vps() {
+	prune_docker
+	prune_docker_logs
+	prune_journal
+	prune_yarn
+	prune_go
+}
+
 # math
 
 max() {

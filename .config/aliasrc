@@ -980,20 +980,24 @@ ncduview() {
 }
 
 prune_docker() {
-	docker image  prune -a "$@"
-	docker system prune -a "$@"
-	docker builder prune "$@"
+	docker image  prune -a "$@" -f
+	docker system prune -a "$@" -f
+	docker builder prune "$@" -f
 }
 
 prune_docker_logs() {
-	test $# -gt 0 || {
-		>&2 echo "container name required."
-		return 1
-	}
-
-	CONTAINER="$1"
-	shift
-	truncate -s 0 $(docker inspect --format='{{.LogPath}}' "$CONTAINER")
+	if test $# -gt 0; then
+		printf '%s\n' "$@"
+	else
+		docker ps -aq
+	fi | while read -r CONTAINER; do
+		LOG=$(docker inspect --format='{{.LogPath}}' "$CONTAINER" 2>/dev/null)
+		test -f "$LOG" || continue
+		BEFORE=$(du -h "$LOG" | cut -f1)
+		truncate -s 0 "$LOG"
+		AFTER=$(du -h "$LOG" | cut -f1)
+		echo "$BEFORE -> $AFTER	$LOG"
+	done
 }
 
 prune_journal() {
@@ -1080,4 +1084,3 @@ sleep_in() {
 sleep_cancel() {
 	sudo killall shutdown
 }
-

@@ -268,8 +268,14 @@
 	ls = lg --stat
 	lo = log          --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'     --abbrev-commit
 	lg = log --graph  --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'     --abbrev-commit
+
+	# log short stat. same as lg, just prints +N -M at the end
+    lss-fullauthor = "!git log --graph --color=always --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset%x07' --abbrev-commit --shortstat | awk 'function flush(){ if(hc){print c}; for(i=1;i<=gn;i++){print g[i]}; c=\"\";hc=0;gn=0 } BEGIN{E=sprintf(\"%c\",27);B=sprintf(\"%c\",7);GR=E\"[32m\";RD=E\"[31m\";Z=E\"[0m\"} { p=index($0,B); if(p>0){ flush(); c=substr($0,1,p-1); hc=1; next } if($0 ~ /[0-9]+ file[s]? changed/){ ins=0;del=0;n=split($0,ff,\",\"); for(j=1;j<=n;j++){ if(ff[j]~/insertion/){t=ff[j];gsub(/[^0-9]/,\"\",t);ins=t} else if(ff[j]~/deletion/){t=ff[j];gsub(/[^0-9]/,\"\",t);del=t} } if(hc){ c=c \" \" GR \"+\" ins Z \" \" RD \"-\" del Z }; next } if($0==\"\"){ next } g[++gn]=$0 } END{ flush() }' | less -FRX"
+    # same, but if author is you, we print <you> instead of <your full name>, to make output shorter & have fewer wrapped lines
+    lss = "!git log --graph --color=always --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset%x07' --abbrev-commit --shortstat | awk -v me=\"$(git config user.name)\" 'function repl(s,a,b,  i,pos){ pos=0; while((i=index(substr(s,pos+1),a))>0){ pos=pos+i } if(pos>0){ s=substr(s,1,pos-1) b substr(s,pos+length(a)) } return s } function flush(){ if(hc){print c}; for(i=1;i<=gn;i++){print g[i]}; c=\"\";hc=0;gn=0 } BEGIN{E=sprintf(\"%c\",27);B=sprintf(\"%c\",7);GR=E\"[32m\";RD=E\"[31m\";Z=E\"[0m\"} { p=index($0,B); if(p>0){ flush(); c=substr($0,1,p-1); if(me!=\"\"){c=repl(c,\"<\" me \">\",\"<You>\")} hc=1; next } if($0 ~ /[0-9]+ file[s]? changed/){ ins=0;del=0;n=split($0,ff,\",\"); for(j=1;j<=n;j++){ if(ff[j]~/insertion/){t=ff[j];gsub(/[^0-9]/,\"\",t);ins=t} else if(ff[j]~/deletion/){t=ff[j];gsub(/[^0-9]/,\"\",t);del=t} } if(hc){ c=c \" \" GR \"+\" ins Z \" \" RD \"-\" del Z }; next } if($0==\"\"){ next } g[++gn]=$0 } END{ flush() }' | less -FRX"
+    ll = lss
+
 	lgg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset %G?' --abbrev-commit
-	lgs = ls
 	lgp = lg --patch
 	lp = log --patch
 	lf = l --follow

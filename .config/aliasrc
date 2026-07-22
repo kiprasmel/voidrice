@@ -188,6 +188,13 @@ __gitwrap() {
 		if [ -n "$GPG_SIGNING_KEY" ]; then
 			EXTRA_ARGS+=("-c" "user.signingkey=$GPG_SIGNING_KEY")
 		fi
+
+		# by default, i've disabled GPG signing, since agents always struggle with it.
+		# this is an easy toggle to enable
+		if [ -n "$GPG" ] || [ -n "$GPG_SIGN" ]; then
+			EXTRA_ARGS+=("-c" "commit.gpgsign=true")
+			EXTRA_ARGS+=("-c" "tag.gpgsign=true")
+		fi
 	fi
 
 	if [ -n "$SHOW_GIT_CMD" ]; then
@@ -368,6 +375,7 @@ griof() { __gitwrap riof $* }
 griomw() { __gitwrap riomw $* }
 griofw() { __gitwrap riofw $* }
 grium() { __gitwrap rium $* }
+griumw() { __gitwrap riumw $* }
 grmbp() { __gitwrap rmbp $* }
 grd() { __gitwrap rd $* }
 grad() { __gitwrap rad $* }
@@ -380,6 +388,8 @@ glg() { __gitwrap lg $* }
 glp() { __gitwrap lp $* }
 glgp() { __gitwrap lgp $* }
 gls() { __gitwrap ls $* }
+glss() { __gitwrap lss $* }
+gll() { __gitwrap ll $* }
 glgs() { __gitwrap lgs $* }
 glgs() { __gitwrap lgs $* }
 
@@ -626,6 +636,12 @@ mkv() {
 	mkdir -p "$@"
 	rm "$@" -r
 	$EDITOR "$@"
+}
+
+# move $1 into $2, make $1 point via symlink to $2
+mvl() {
+	mv -v "$1" "$2/"
+	ln -v -s "$2/$1" "$1"
 }
 
 esl() { eslint --ext js,jsx,ts,tsx $* }
@@ -1033,20 +1049,95 @@ prune_yarn() {
 	yarn cache clean "$@"
 }
 
+prune_pypoetry() {
+	command -v poetry >/dev/null 2>&1 || return 0
+
+	local DAYS=30
+	local ALL_VENVS=
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--all-venvs) ALL_VENVS=1 ;;
+			[0-9]*) DAYS="$1" ;;
+			*)
+				>&2 printf "usage: prune_pypoetry [DAYS] [--all-venvs]\n"
+				return 1
+				;;
+		esac
+		shift
+	done
+
+	local CACHE_DIR VENV_DIR cache venv target before
+	CACHE_DIR="$(poetry config cache-dir 2>/dev/null)" || return 0
+	VENV_DIR="$(poetry config virtualenvs.path 2>/dev/null)"
+	case "$VENV_DIR" in
+		*'{cache-dir}'*) VENV_DIR="${CACHE_DIR}/virtualenvs" ;;
+	esac
+	[ -z "$VENV_DIR" ] && VENV_DIR="${CACHE_DIR}/virtualenvs"
+
+	if poetry cache clear --all -n >/dev/null 2>&1; then
+		:
+	else
+		for cache in $(poetry cache list); do
+			poetry cache clear --all "$cache" -n
+		done
+	fi
+
+	if [ -d "$CACHE_DIR/artifacts" ]; then
+		find "$CACHE_DIR/artifacts" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+	fi
+
+	[ -d "$VENV_DIR" ] || return 0
+
+	find "$VENV_DIR" -mindepth 1 -maxdepth 1 -type d | while IFS= read -r venv; do
+		[ -d "$venv" ] || continue
+
+		if [ -n "$VIRTUAL_ENV" ] && [ "$venv" = "$VIRTUAL_ENV" ]; then
+			printf 'skip active venv\t%s\n' "$venv"
+			continue
+		fi
+
+		if [ -n "$ALL_VENVS" ]; then
+			before="$(du -sh "$venv" 2>/dev/null | cut -f1)"
+			rm -rf "$venv"
+			printf 'removed venv (all)\t%s\t%s\n' "$before" "$venv"
+			continue
+		fi
+
+		if [ -e "$venv/bin/python" ]; then
+			target="$venv/bin/python"
+		else
+			target="$venv"
+		fi
+
+		find "$target" -maxdepth 0 -atime +"$DAYS" 2>/dev/null | grep -q . || continue
+
+		before="$(du -sh "$venv" 2>/dev/null | cut -f1)"
+		rm -rf "$venv"
+		printf 'removed stale venv (>%sd unused)\t%s\t%s\n' "$DAYS" "$before" "$venv"
+	done
+}
+
 prune_xcode() {
 	rm -rf "$HOME/Library/Developer/Xcode/DerivedData"
 }
 
 prune_mac() {
+	prune_base
 	prune_brew
 	prune_xcode
 }
 
 prune_vps() {
+	prune_base
+	prune_journal
+}
+
+prune_base() {
 	prune_docker
 	prune_docker_logs
-	prune_journal
 	prune_yarn
+	prune_pypoetry
 	prune_go
 }
 

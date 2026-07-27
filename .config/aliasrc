@@ -966,8 +966,7 @@ ff_encodeyt() {
 
 NCDU_LAST_SCAN=
 ncduscan() {
-	from="${1:-/}"
-
+	from="${from:-/}"
 	time_utc="$(date "+%Y-%m-%d")"
 	outfile="ncdu-$time_utc"
 	n=1
@@ -977,7 +976,7 @@ ncduscan() {
 	done
 
 	outfile="$outfile.gz"
-	sudo ncdu -e --confirm-quit -1o- "$from" | gzip > "$outfile"
+	sudo ncdu -e --confirm-quit -1o- "$from" "$@" | gzip > "$outfile"
 
 	echo "$outfile"
 	NCDU_LAST_SCAN="$outfile"

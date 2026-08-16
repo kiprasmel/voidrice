@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# bash-ide hardcodes --external-sources, which makes shellcheck follow the
+# `# shellcheck source=` directives across ~700 KB of interlinked scripts and
+# balloon past 30 GB. Drop the flag; per-file analysis still reports findings.
+#
+# The real binary lives in the keg. Never default to $(brew --prefix)/bin/shellcheck
+# — that path is this wrapper after install, and would recurse.
+set -euo pipefail
+
+real="${SHELLCHECK_REAL:-/opt/homebrew/opt/shellcheck/bin/shellcheck}"
+if [ ! -x "$real" ]; then
+	real="$(command -v shellcheck 2>/dev/null || true)"
+fi
+if [ -z "$real" ] || [ ! -x "$real" ]; then
+	>&2 echo "err: shellcheck not found (set SHELLCHECK_REAL)"
+	exit 127
+fi
+# Don't recurse if this wrapper is first on PATH.
+this="$(realpath "$0" 2>/dev/null || echo "$0")"
+target="$(realpath "$real" 2>/dev/null || echo "$real")"
+if [ "$target" = "$this" ]; then
+	>&2 echo "err: SHELLCHECK_REAL points at this wrapper"
+	exit 127
+fi
+
+args=()
+for a in "$@"; do
+	case "$a" in
+		-x|--external-sources) continue ;;
+	esac
+	args+=("$a")
+done
+exec "$real" "${args[@]}"

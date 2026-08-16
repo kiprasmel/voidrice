@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Machine-wide RSS backstop. Warns at 8 GiB, SIGKILLs at 12 GiB.
+# Not codespace-scoped: the process that jetsam'd the laptop (shellcheck,
+# 35 GiB) was Cursor's. Allowlist is names, one per line.
+set -euo pipefail
+
+STATE="${MEMGUARD_STATE:-$HOME/.local/state/memguard}"
+LOG="${MEMGUARD_LOG:-$STATE/memguard.log}"
+ALLOW_FILE="${MEMGUARD_ALLOWLIST:-$STATE/allowlist}"
+TICK="${MEMGUARD_TICK:-5}"
+# RSS is KiB from `ps`. Defaults: 8 GiB warn, 12 GiB kill.
+WARN_KIB="${MEMGUARD_WARN_KIB:-$((8 * 1024 * 1024))}"
+KILL_KIB="${MEMGUARD_KILL_KIB:-$((12 * 1024 * 1024))}"
+# shellcheck grew 2 GiB in 13s with -x; kill it well before the general cap.
+SHELLCHECK_WARN_KIB="${MEMGUARD_SHELLCHECK_WARN_KIB:-$((1 * 1024 * 1024))}"
+SHELLCHECK_KILL_KIB="${MEMGUARD_SHELLCHECK_KILL_KIB:-$((2 * 1024 * 1024))}"
+MAX_TICKS="${MEMGUARD_MAX_TICKS:-0}"
+
+mkdir -p "$STATE"
+# Built-in: things we cannot / must not kill.
+builtin_allow='kernel_task
+launchd
+WindowServer
+loginwindow
+memguard'
+
+is_allowed() {
+	local name="$1"
+	printf '%s\n' "$builtin_allow" | grep -Fxq -- "$name" && return 0
+	[ -f "$ALLOW_FILE" ] || return 1
+	# Names only; skip blanks and # comments.
+	grep -v '^[[:space:]]*\(#\|$\)' "$ALLOW_FILE" | grep -Fxq -- "$name"
+}
+
+stamp() { date -u +%FT%TZ; }
+
+log() {
+	printf '%s %s\n' "$(stamp)" "$*" >> "$LOG"
+	# launchd points StandardErrorPath at the same file; only echo when
+	# stderr is a tty so start is not recorded twice.
+	if [ -t 2 ]; then
+		printf '%s %s\n' "$(stamp)" "$*" >&2
+	fi
+}
+
+# Track last-warned pid so a stuck 8–12 GiB process does not flood the log.
+# File: pid\tname\tepoch
+WARNED="$STATE/last-warn"
+warn_cooldown="${MEMGUARD_WARN_COOLDOWN:-60}"
+
+should_warn() {
+	local pid="$1" now last_pid last_ts
+	now="$(date +%s)"
+	if [ -f "$WARNED" ]; then
+		IFS=$'\t' read -r last_pid _ last_ts < "$WARNED" || true
+		if [ "${last_pid:-}" = "$pid" ] && [ $((now - ${last_ts:-0})) -lt "$warn_cooldown" ]; then
+			return 1
+		fi
+	fi
+	printf '%s\t%s\t%s\n' "$pid" "$2" "$now" > "$WARNED"
+	return 0
+}
+
+scan() {
+	local pid rss comm name kib_warn kib_kill
+	# rss= KiB; comm= executable name (not full argv).
+	while read -r pid rss comm; do
+		[ -n "$pid" ] && [ -n "$rss" ] || continue
+		name="${comm##*/}"
+		kib_warn="$WARN_KIB"
+		kib_kill="$KILL_KIB"
+		if [ "$name" = "shellcheck" ]; then
+			kib_warn="$SHELLCHECK_WARN_KIB"
+			kib_kill="$SHELLCHECK_KILL_KIB"
+		fi
+		[ "$rss" -ge "$kib_warn" ] 2>/dev/null || continue
+		[ "$pid" = "$$" ] && continue
+		if [ -n "${MEMGUARD_ONLY_PID:-}" ] && [ "$pid" != "$MEMGUARD_ONLY_PID" ]; then
+			continue
+		fi
+		if [ -n "${MEMGUARD_ONLY_NAME:-}" ] && [ "$name" != "$MEMGUARD_ONLY_NAME" ]; then
+			continue
+		fi
+		if is_allowed "$name"; then
+			continue
+		fi
+		if [ "$rss" -ge "$kib_kill" ]; then
+			log "KILL pid=$pid rss=$((rss / 1024))MiB name=$name (threshold $((kib_kill / 1024))MiB)"
+			kill -KILL "$pid" 2>/dev/null || log "note: kill failed pid=$pid"
+		else
+			if should_warn "$pid" "$name"; then
+				log "WARN pid=$pid rss=$((rss / 1024))MiB name=$name (warn $((kib_warn / 1024))MiB kill $((kib_kill / 1024))MiB)"
+			fi
+		fi
+	done < <(ps -axo pid=,rss=,comm=)
+}
+
+[ "${MEMGUARD_NO_RUN:-0}" = 1 ] && { echo "memguard: MEMGUARD_NO_RUN=1; exiting"; exit 0; }
+
+log "memguard start tick=${TICK}s warn=$((WARN_KIB / 1024))MiB kill=$((KILL_KIB / 1024))MiB shellcheck_warn=$((SHELLCHECK_WARN_KIB / 1024))MiB shellcheck_kill=$((SHELLCHECK_KILL_KIB / 1024))MiB"
+ticks=0
+while :; do
+	if [ "${MAX_TICKS:-0}" -gt 0 ] 2>/dev/null && [ "$ticks" -ge "$MAX_TICKS" ]; then
+		exit 0
+	fi
+	ticks=$((ticks + 1))
+	scan
+	sleep "$TICK"
+done

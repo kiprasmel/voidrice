@@ -13,8 +13,11 @@ Usage:
   claude-sessions --stop PID [PID ...]  snapshot, then exit those sessions
   add --dry-run to see what would be stopped without stopping anything
 
-Stopping never touches a session whose status is "busy". The snapshot is
-written first, so every stopped session has its resume line.
+Stopping never touches a "busy" session, nor a "waiting" one (Claude asked
+something and waits for an answer) unless --include-waiting. Text typed into
+a session's input box but not submitted is invisible from outside and is lost
+when the session exits: --keep PID for those. The snapshot is written first,
+so every stopped session has its resume line.
 """
 
 import argparse
@@ -299,8 +302,11 @@ def main():
 	ap.add_argument("-o", "--output", help="write the snapshot here instead of the state dir")
 	ap.add_argument("--stop-idle", type=float, metavar="HOURS", help="after the snapshot, exit sessions idle >= HOURS")
 	ap.add_argument("--stop", type=int, nargs="+", metavar="PID", help="after the snapshot, exit these sessions")
+	ap.add_argument("--keep", type=int, nargs="+", default=[], metavar="PID", help="never stop these (e.g. unsent drafts)")
+	ap.add_argument("--include-waiting", action="store_true", help="also stop sessions waiting for your answer")
 	ap.add_argument("--dry-run", action="store_true", help="with --stop/--stop-idle: only show what would be stopped")
 	args = ap.parse_args()
+	protected = {"busy"} | (set() if args.include_waiting else {"waiting"})
 
 	now = datetime.now()
 	sessions = collect()
@@ -328,17 +334,18 @@ def main():
 	targets = []
 	if args.stop_idle is not None:
 		cutoff = time.time() - args.stop_idle * 3600
-		targets = [s for s in sessions if s["status"] != "busy" and s["last"] <= cutoff]
+		targets = [s for s in sessions if s["last"] <= cutoff]
 	if args.stop:
 		want = set(args.stop)
 		targets += [s for s in sessions if s["pid"] in want and s not in targets]
-		for s in list(targets):
-			if s["status"] == "busy":
-				print(f"  skipping pid {s['pid']}: busy")
-				targets.remove(s)
 		unknown = want - {s["pid"] for s in sessions}
 		if unknown:
 			print(f"  not live claude sessions: {', '.join(map(str, sorted(unknown)))}")
+	for s in list(targets):
+		if s["status"] in protected or s["pid"] in args.keep or s["kind"] == "bg":
+			why = "kept (--keep)" if s["pid"] in args.keep else s["kind"] if s["kind"] == "bg" else s["status"]
+			print(f"  skipping pid {s['pid']} {s['name']}: {why}")
+			targets.remove(s)
 	if targets:
 		mb = sum(s["mb"] for s in targets)
 		print(f"{'would stop' if args.dry_run else 'stopping'} {len(targets)} session(s), {mb / 1024:.1f} GB:")

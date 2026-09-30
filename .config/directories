@@ -64,7 +64,7 @@ bz  $HOME/projects/biz
 biz $HOME/projects/biz
 nn 	$HOME/projects/neural-nets-from-scratch
 l2  $HOME/projects/layer2
-cs $HOME/projects/codespace
+l2s  $HOME/projects/layer2/sintra
 prv $HOME/projects/pull-request-versions
 
 gi $HOME/forkprojects/git

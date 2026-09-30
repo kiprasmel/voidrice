@@ -307,6 +307,7 @@ qrwifi() {
 # but at this point why bother
 #
 gs() { __gitwrap s $* }
+gsd() { __gitwrap sd $* }
 cos() { config s $* }
 cop() { config p $* }
 coc() { config c $* }
@@ -476,6 +477,9 @@ gj() { __gitwrap j $* }
 
 # git done.
 
+cs() {
+	codespace-op "$@"
+}
 
 # docker
 dps() { docker ps $* }
@@ -536,7 +540,7 @@ compdef ci="code"
 
 cl() {
 	#echo -ne "\033]0;claude\007"
-	claude --dangerously-skip-permissions "$@"
+	claude --dangerously-skip-permissions --allow-dangerously-skip-permissions "$@"
 }
 
 drag() {
@@ -975,8 +979,13 @@ ncduscan() {
 		n=$((n+1))
 	done
 
+	local -a extra_flags=()
+	case "$OSTYPE" in
+		darwin*) extra_flags+=(--exclude Volumes) ;; # duplicate dir as /
+	esac
+
 	outfile="$outfile.gz"
-	sudo ncdu -e --confirm-quit -1o- "$from" "$@" | gzip > "$outfile"
+	sudo ncdu -e --confirm-quit "${extra_flags[@]}" -1o- "$from" "$@" | gzip > "$outfile"
 
 	echo "$outfile"
 	NCDU_LAST_SCAN="$outfile"
@@ -1037,7 +1046,14 @@ remove_older_than() {
 }
 
 prune_brew() {
-	brew cleanup
+	command -v brew >/dev/null 2>&1 || return 0
+	# -s scrubs the latest-version downloads too; --prune=all drops every
+	# cached bottle regardless of age. Plain `brew cleanup` keeps both, which
+	# is how ~/Library/Caches/Homebrew/downloads reaches double-digit GB.
+	brew cleanup -s --prune=all
+	local d="$(brew --cache 2>/dev/null)"
+	[ -n "$d" ] && [ -d "$d/downloads" ] && rm -rf "$d/downloads"
+	return 0
 }
 
 prune_go() {
@@ -1118,13 +1134,99 @@ prune_pypoetry() {
 }
 
 prune_xcode() {
-	rm -rf "$HOME/Library/Developer/Xcode/DerivedData"
+	local X="$HOME/Library/Developer/Xcode"
+	[ -d "$X" ] || return 0
+	rm -rf "$X/DerivedData"
+	# Per-OS-version symbol dumps for every device ever attached, and every
+	# archive ever built. Both regenerate; both dwarf DerivedData.
+	rm -rf "$X/iOS DeviceSupport" "$X/watchOS DeviceSupport" "$X/tvOS DeviceSupport"
+	rm -rf "$X/Archives"
+	command -v xcrun >/dev/null 2>&1 && xcrun simctl delete unavailable 2>/dev/null
+	return 0
+}
+
+# Node package managers. npm's _cacache and the pnpm content store both grow
+# without bound; pnpm store prune only drops what no project references.
+prune_npm() {
+	command -v npm >/dev/null 2>&1 && npm cache clean --force >/dev/null 2>&1
+	command -v pnpm >/dev/null 2>&1 && pnpm store prune >/dev/null 2>&1
+	rm -rf "$HOME/.npm/_logs"
+	return 0
+}
+
+# Python wheels/downloads outside poetry: pip's http cache and uv's store.
+prune_pip() {
+	command -v pip3 >/dev/null 2>&1 && pip3 cache purge >/dev/null 2>&1
+	command -v uv >/dev/null 2>&1 && uv cache prune >/dev/null 2>&1
+	rm -rf "$HOME/Library/Caches/pip" "$HOME/.cache/pip"
+	return 0
+}
+
+# Cargo keeps every downloaded crate source and its git checkouts forever.
+prune_cargo() {
+	command -v cargo >/dev/null 2>&1 || return 0
+	rm -rf "$HOME/.cargo/registry/cache" "$HOME/.cargo/registry/src" "$HOME/.cargo/git/checkouts"
+	return 0
+}
+
+# Test harnesses that allocate under $TMPDIR and do not always clean up.
+# Matched by name so a live temp dir is never in scope. Args: [DAYS] (default 1)
+prune_testtmp() {
+	local DAYS="${1:-1}" root
+	for root in "${TMPDIR:-/tmp}" /tmp /var/folders; do
+		[ -d "$root" ] || continue
+		find "$root" -maxdepth 3 -type d \
+			\( -name 'bats-run-*' -o -name 'pytest-of-*' -o -name 'vitest-*' -o -name 'jest_*' \) \
+			-mtime +"$DAYS" -prune -exec rm -rf {} + 2>/dev/null
+	done
+	return 0
+}
+
+# macOS app caches that regenerate on next launch. Named one by one rather
+# than wiping ~/Library/Caches: several entries there are state, not cache,
+# and blanket removal loses window layouts and sign-ins.
+prune_app_caches() {
+	local C="$HOME/Library/Caches" d before
+	[ -d "$C" ] || return 0
+	for d in com.spotify.client Google node-gyp CocoaPods dotslash ms-playwright; do
+		[ -d "$C/$d" ] || continue
+		before="$(du -sh "$C/$d" 2>/dev/null | cut -f1)"
+		rm -rf "$C/$d"
+		printf 'removed cache\t%s\t%s\n' "$before" "$d"
+	done
+	# Auto-update staging for Squirrel/ShipIt apps; re-downloaded on demand.
+	for d in "$C"/*.ShipIt; do
+		[ -d "$d" ] || continue
+		before="$(du -sh "$d" 2>/dev/null | cut -f1)"
+		rm -rf "$d"
+		printf 'removed updater\t%s\t%s\n' "$before" "$(basename "$d")"
+	done
+	return 0
+}
+
+# What is actually using the disk, before deciding what to prune.
+# Args: [N] (default 12)
+prune_report() {
+	local n="${1:-12}"
+	printf '== free ==\n'
+	df -h / | tail -1
+	if [ -d "$HOME/Library/Caches" ]; then
+		printf '== top %s in ~/Library/Caches ==\n' "$n"
+		du -sh "$HOME/Library/Caches"/* 2>/dev/null | sort -rh | head -"$n"
+	fi
+	if [ -d "$HOME/.cache" ]; then
+		printf '== top %s in ~/.cache ==\n' "$n"
+		du -sh "$HOME/.cache"/* 2>/dev/null | sort -rh | head -"$n"
+	fi
+	return 0
 }
 
 prune_mac() {
 	prune_base
 	prune_brew
 	prune_xcode
+	prune_app_caches
+	prune_report
 }
 
 prune_vps() {
@@ -1136,8 +1238,12 @@ prune_base() {
 	prune_docker
 	prune_docker_logs
 	prune_yarn
+	prune_npm
 	prune_pypoetry
+	prune_pip
+	prune_cargo
 	prune_go
+	prune_testtmp
 }
 
 # math
@@ -1151,7 +1257,14 @@ min() {
 
 # deps
 brewup() {
-	brew update && brew upgrade --greedy "$@"
+	brew update && brew upgrade --greedy --yes "$@" || return
+
+	# leftover include/node files can leave node unlinked after upgrade
+	if [ ! -x "$(brew --prefix)/bin/node" ] && [ -x "$(brew --prefix)/opt/node/bin/node" ]; then
+		echo "node missing after brew upgrade; brew link --overwrite node"
+		brew link --overwrite node || return
+		hash -r 2>/dev/null
+	fi
 }
 
 # editors

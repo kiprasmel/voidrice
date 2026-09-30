@@ -379,6 +379,7 @@
 	s = status
 	sa = status --untracked-files=all
 	si = status --ignored=traditional
+	sd = !git status ${GIT_PREFIX:-.}
 
 	so = show
 	sos = show --stat

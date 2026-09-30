@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+
+"""
+mcp-lazy: start a stdio MCP server only when a session actually uses it.
+
+Every Claude session starts every configured stdio MCP server, even though
+most sessions never call it (chrome-devtools-mcp: ~120 MB each, used by 7 of
+96 sessions). mcp-lazy answers the startup handshake (initialize, tools/list,
+ping, logging/setLevel) from a cache and starts the real server on the first
+other request, replaying the handshake to it, then pipes both ways.
+
+Usage in an MCP config:
+  "command": "mcp-lazy", "args": ["--", "chrome-devtools-mcp", "--autoConnect"]
+
+The first run with no cache (or after the server's files change, or a new
+client protocol version) passes straight through to the real server and
+records its replies in ~/.cache/mcp-lazy/.
+"""
+
+import hashlib
+import json
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import threading
+
+CACHE_DIR = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "mcp-lazy")
+INIT_ID = "mcp-lazy-init"
+LEVEL_ID = "mcp-lazy-level"
+
+out_lock = threading.Lock()
+
+
+def send(msg):
+	"""Write to the client; the server pump thread writes here too."""
+	data = (json.dumps(msg, separators=(",", ":")) + "\n").encode()
+	with out_lock:
+		sys.stdout.buffer.write(data)
+		sys.stdout.buffer.flush()
+
+
+def cache_path(cmd):
+	exe = shutil.which(cmd[0]) or cmd[0]
+	real = os.path.realpath(exe)
+	try:
+		stamp = os.path.getmtime(real)
+	except OSError:
+		stamp = 0
+	key = json.dumps([cmd, real, stamp])
+	return os.path.join(CACHE_DIR, hashlib.sha256(key.encode()).hexdigest()[:16] + ".json")
+
+
+def load_cache(path):
+	try:
+		with open(path) as f:
+			return json.load(f)
+	except (OSError, ValueError):
+		return None
+
+
+def save_cache(path, cache):
+	os.makedirs(CACHE_DIR, exist_ok=True)
+	tmp = path + f".{os.getpid()}.tmp"
+	with open(tmp, "w") as f:
+		json.dump(cache, f)
+	os.replace(tmp, path)
+
+
+class Real:
+	"""The real server, once started. Server->client traffic is forwarded
+	except replies to our own replayed requests."""
+
+	def __init__(self, cmd, on_reply):
+		self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+		self.on_reply = on_reply
+		self.swallow = set()
+		self.replied = {}
+		self.cond = threading.Condition()
+		self.reader = threading.Thread(target=self._pump, daemon=True)
+		self.reader.start()
+
+	def _pump(self):
+		for line in self.proc.stdout:
+			try:
+				msg = json.loads(line)
+			except ValueError:
+				continue
+			if self.on_reply and "id" in msg and ("result" in msg or "error" in msg):
+				self.on_reply(msg)
+			if msg.get("id") in self.swallow and "method" not in msg:
+				with self.cond:
+					self.replied[msg["id"]] = msg
+					self.cond.notify_all()
+				continue
+			send(msg)
+		os._exit(self.proc.wait() or 0)  # server gone: so is this proxy
+
+	def request(self, msg, timeout=120):
+		"""Send one of our own requests and wait for its reply."""
+		self.swallow.add(msg["id"])
+		self.write(msg)
+		with self.cond:
+			self.cond.wait_for(lambda: msg["id"] in self.replied, timeout)
+		return self.replied.get(msg["id"])
+
+	def write(self, msg):
+		self.proc.stdin.write((json.dumps(msg, separators=(",", ":")) + "\n").encode())
+		self.proc.stdin.flush()
+
+
+def main():
+	argv = sys.argv[1:]
+	if "--" in argv:
+		argv = argv[argv.index("--") + 1:]
+	if not argv:
+		sys.exit("usage: mcp-lazy -- <server command> [args...]")
+	cmd = argv
+	path = cache_path(cmd)
+	cache = load_cache(path)
+
+	real = None
+	init_params = None
+	level = None
+	record = {}  # request id -> what to record, while passing through
+	recording = False  # passing through because there was no usable cache
+
+	def on_reply(msg):
+		what = record.pop(msg.get("id"), None)
+		if what and "result" in msg:
+			c = load_cache(path) or {}
+			if what == "initialize":
+				c = {"protocol": init_params.get("protocolVersion"), "initialize": msg["result"]}
+			elif what == "tools" and c.get("initialize"):
+				c["tools"] = msg["result"]
+			if c.get("initialize"):
+				save_cache(path, c)
+
+	def start_real():
+		nonlocal real
+		real = Real(cmd, None)
+		if init_params is not None:
+			real.request({"jsonrpc": "2.0", "id": INIT_ID, "method": "initialize", "params": init_params})
+			real.write({"jsonrpc": "2.0", "method": "notifications/initialized"})
+			if level is not None:
+				real.request({"jsonrpc": "2.0", "id": LEVEL_ID, "method": "logging/setLevel", "params": {"level": level}})
+
+	def stop(*_):
+		if real and real.proc.poll() is None:
+			real.proc.terminate()
+		os._exit(0)
+
+	signal.signal(signal.SIGTERM, stop)
+	signal.signal(signal.SIGINT, stop)
+
+	for line in sys.stdin.buffer:
+		try:
+			msg = json.loads(line)
+		except ValueError:
+			continue
+		method = msg.get("method")
+		mid = msg.get("id")
+		if real:
+			if recording and method == "tools/list" and not (msg.get("params") or {}).get("cursor"):
+				record[mid] = "tools"  # passing through with no cache: record this reply too
+			real.write(msg)
+			continue
+		if method == "initialize":
+			init_params = msg.get("params") or {}
+			if cache and cache.get("tools") and cache.get("protocol") == init_params.get("protocolVersion"):
+				send({"jsonrpc": "2.0", "id": mid, "result": cache["initialize"]})
+				continue
+			# no usable cache: pass everything through, recording the replies
+			cache = None
+			recording = True
+			real = Real(cmd, on_reply)
+			record[mid] = "initialize"
+			real.write(msg)
+			continue
+		if cache is None:
+			continue  # nothing before initialize
+		if method == "notifications/initialized":
+			continue
+		if method == "tools/list" and not (msg.get("params") or {}).get("cursor"):
+			send({"jsonrpc": "2.0", "id": mid, "result": cache["tools"]})
+			continue
+		if method == "ping":
+			send({"jsonrpc": "2.0", "id": mid, "result": {}})
+			continue
+		if method == "logging/setLevel":
+			level = (msg.get("params") or {}).get("level")
+			send({"jsonrpc": "2.0", "id": mid, "result": {}})
+			continue
+		if mid is None:
+			continue  # other notifications before the server exists concern nothing
+		start_real()
+		real.write(msg)
+
+	# client closed stdin: let the server finish and exit
+	if real:
+		real.proc.stdin.close()
+		try:
+			real.proc.wait(timeout=10)
+		except subprocess.TimeoutExpired:
+			real.proc.terminate()
+
+
+if __name__ == "__main__":
+	main()

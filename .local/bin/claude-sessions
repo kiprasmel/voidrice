@@ -16,9 +16,11 @@ Usage:
   claude-sessions                       update the list
   claude-sessions --stop-idle HOURS     then exit sessions idle >= HOURS
   claude-sessions --stop PID [PID ...]  then exit those sessions
-  claude-sessions --drafts              after quitting Cursor (Cmd+Q): pull
-                                        unsent input-box text and the text of
-                                        every terminal from what Cursor saved
+  claude-sessions --drafts              after quitting Cursor with Cmd+Q or
+                                        the Quit menu: pull unsent input-box
+                                        text and the text of every terminal
+                                        from what Cursor saved. Killing Cursor
+                                        (even SIGTERM) skips that save.
   claude-sessions --forget ID|PID ...   drop sessions you don't want back
   add --dry-run to see what --stop/--stop-idle would stop
 

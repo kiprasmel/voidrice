@@ -1,23 +1,32 @@
 #!/usr/bin/env python3
 
 """
-claude-sessions: snapshot running Claude Code sessions into a resume file.
+claude-sessions: keep a resume list of Claude Code sessions, so they can be
+stopped (or Cursor restarted) without losing track of them.
 
-Writes one `cd <dir> && claude <original flags> --resume <id>` line per live
-session, grouped by directory (most recently active first), to
-~/.local/state/claude-sessions/<timestamp>.sh; latest.sh points at the newest.
+Every run merges the live sessions into ~/.local/state/claude-sessions/
+sessions.json and rewrites latest.sh from it: sessions that are no longer
+running come first, as `cd <dir> && claude <original flags> --resume <id>`
+lines grouped by directory, then the running ones, then other processes in
+Cursor terminals (dev servers etc., which die when Cursor quits). A session
+stays in the list until it runs again or you --forget it, so reruns never
+lose anything. Each run also leaves a copy in history/.
 
 Usage:
-  claude-sessions                       snapshot only
-  claude-sessions --stop-idle HOURS     snapshot, then exit sessions idle >= HOURS
-  claude-sessions --stop PID [PID ...]  snapshot, then exit those sessions
-  add --dry-run to see what would be stopped without stopping anything
+  claude-sessions                       update the list
+  claude-sessions --stop-idle HOURS     then exit sessions idle >= HOURS
+  claude-sessions --stop PID [PID ...]  then exit those sessions
+  claude-sessions --drafts              after quitting Cursor (Cmd+Q): pull
+                                        unsent input-box text and the text of
+                                        every terminal from what Cursor saved
+  claude-sessions --forget ID|PID ...   drop sessions you don't want back
+  add --dry-run to see what --stop/--stop-idle would stop
 
 Stopping never touches a "busy" session, nor a "waiting" one (Claude asked
 something and waits for an answer) unless --include-waiting. Text typed into
-a session's input box but not submitted is invisible from outside and is lost
-when the session exits: --keep PID for those. The snapshot is written first,
-so every stopped session has its resume line.
+an input box but not submitted can't be seen from outside and is lost when
+the session exits: --keep PID for those, or quit Cursor and use --drafts,
+which reads it from Cursor's saved terminal contents.
 """
 
 import argparse
@@ -29,20 +38,26 @@ import os
 import re
 import shlex
 import signal
+import sqlite3
 import subprocess
 import sys
 import time
 from collections import defaultdict
 from datetime import datetime
+from urllib.parse import unquote, urlparse
 
 HOME = os.path.expanduser("~")
 REGISTRY = os.path.join(HOME, ".claude/sessions")
 PROJECTS = os.path.join(HOME, ".claude/projects")
 OUT_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.join(HOME, ".local/state")), "claude-sessions")
+STATE = os.path.join(OUT_DIR, "sessions.json")
+WINDOWS = os.path.join(OUT_DIR, "cursor-windows.json")  # open windows as of the last run
+CURSOR_WS = os.path.join(HOME, "Library/Application Support/Cursor/User/workspaceStorage")
 
 # Flags that pick which conversation to open; the resume line supplies its own.
 SESSION_FLAGS_WITH_VALUE = {"--resume", "-r", "--session-id", "--resume-session-at"}
 SESSION_FLAGS = {"--continue", "-c", "--fork-session"}
+SHELLS = {"zsh", "-zsh", "bash", "-bash", "sh", "fish", "-fish", "login"}
 
 libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
 
@@ -84,6 +99,19 @@ def ps_table():
 	return procs
 
 
+def cwds_of(pids):
+	if not pids:
+		return {}
+	out = subprocess.run(["lsof", "-a", "-d", "cwd", "-Fpn", "-p", ",".join(map(str, pids))], capture_output=True, text=True).stdout
+	cwds, cur = {}, None
+	for line in out.splitlines():
+		if line.startswith("p"):
+			cur = int(line[1:])
+		elif line.startswith("n") and cur:
+			cwds[cur] = line[1:]
+	return cwds
+
+
 def footprints_mb(pids):
 	"""Physical footprint (what Activity Monitor shows), not RSS."""
 	want = set(pids)
@@ -98,13 +126,17 @@ def footprints_mb(pids):
 	return mem
 
 
+def chain(pid, procs):
+	out = []
+	while pid in procs and pid > 1:
+		out.append(pid)
+		pid = procs[pid]["ppid"]
+	return out
+
+
 def where(pid, procs):
-	"""cursor:<window> / tmux / iterm / other, from the ancestor chain + cwd."""
-	chain, p = [], pid
-	while p in procs and p > 1:
-		chain.append(procs[p]["command"])
-		p = procs[p]["ppid"]
-	joined = "\n".join(chain)
+	"""cursor / tmux / iterm / other, from the ancestor chain."""
+	joined = "\n".join(procs[p]["command"] for p in chain(pid, procs))
 	if "Cursor Helper: terminal pty-host" in joined:
 		return "cursor"
 	if "tmux" in joined:
@@ -153,7 +185,9 @@ def last_message_ts(path):
 	return 0
 
 
-def resume_argv(argv):
+def resume_flags(argv, kind):
+	if kind == "bg":
+		return []  # daemon-internal flags; a plain resume is what a person wants
 	out, skip = [], False
 	for a in argv[1:]:
 		if skip:
@@ -168,6 +202,11 @@ def resume_argv(argv):
 	return out
 
 
+def resume_line(s):
+	cmd = ["claude"] + s["flags"] + ["--resume", s["id"]]
+	return f"cd {shlex.quote(s['cwd'])} && {' '.join(shlex.quote(a) for a in cmd)}"
+
+
 def ago(ts):
 	s = max(0, time.time() - ts)
 	if s < 3600:
@@ -177,8 +216,7 @@ def ago(ts):
 	return f"{s / 86400:.1f}d"
 
 
-def collect():
-	procs = ps_table()
+def collect(procs):
 	names = cursor_window_names(procs)
 	sessions = []
 	for f in glob.glob(os.path.join(REGISTRY, "*.json")):
@@ -200,18 +238,18 @@ def collect():
 			continue
 		tr = transcript_of(sid)
 		status_ts = (d.get("statusUpdatedAt") or d.get("updatedAt") or 0) / 1000
-		last = max(status_ts, last_message_ts(tr) if tr else 0)
 		cwd = d.get("cwd") or ""
+		kind = d.get("kind") or ""
 		sessions.append({
 			"pid": pid,
 			"id": sid,
 			"cwd": cwd,
 			"name": d.get("name") or "",
 			"status": d.get("status") or "?",
-			"kind": d.get("kind") or "",
-			"last": last,
-			"argv": argv,
-			"transcript": tr,
+			"kind": kind,
+			"last": max(status_ts, last_message_ts(tr) if tr else 0),
+			"flags": resume_flags(argv, kind),
+			"resumable": bool(tr),
 			"where": where(pid, procs),
 			"window": window_for(cwd, names),
 		})
@@ -221,35 +259,225 @@ def collect():
 	return sessions
 
 
-def render(sessions, now):
-	by_dir = defaultdict(list)
-	for s in sessions:
-		by_dir[s["cwd"]].append(s)
-	dirs = sorted(by_dir, key=lambda d: -max(s["last"] for s in by_dir[d]))
+def load_state():
+	try:
+		return json.load(open(STATE))
+	except (OSError, ValueError):
+		return {}
+
+
+def save_state(state):
+	tmp = STATE + ".tmp"
+	with open(tmp, "w") as f:
+		json.dump(state, f, indent=1)
+	os.replace(tmp, STATE)
+
+
+def merge(state, live, now):
+	for s in state.values():
+		s["live"] = False
+	for s in live:
+		prev = state.get(s["id"], {})
+		state[s["id"]] = {
+			"id": s["id"], "cwd": s["cwd"], "name": s["name"], "flags": s["flags"],
+			"kind": s["kind"], "where": s["where"], "window": s["window"] or prev.get("window"),
+			"status": s["status"], "pid": s["pid"], "last": s["last"], "resumable": s["resumable"],
+			"first_seen": prev.get("first_seen", now), "last_seen": now, "live": True,
+		}
+	# a session that never got a message has no transcript to resume
+	for sid in [k for k, s in state.items() if not s["live"] and not s.get("resumable")]:
+		del state[sid]
+
+
+def terminal_jobs(procs):
+	"""Commands run directly in Cursor terminal shells, other than claude:
+	dev servers, log tails and the like. They die when Cursor quits."""
+	hosts = {p for p, d in procs.items() if "Cursor Helper: terminal pty-host" in d["command"]}
+	shells = {p for p, d in procs.items() if d["ppid"] in hosts}
+	jobs = [p for p, d in procs.items() if d["ppid"] in shells
+		and os.path.basename(d["command"].split()[0]).lstrip("-") not in SHELLS | {"claude"}]
+	cwds = cwds_of(jobs)
+	return [{"pid": p, "cwd": cwds.get(p, "?"), "command": procs[p]["command"]} for p in jobs]
+
+
+def render(state, live_by_id, jobs, now):
+	def grouped(items):
+		by_dir = defaultdict(list)
+		for s in items:
+			by_dir[s["cwd"]].append(s)
+		for d in sorted(by_dir, key=lambda d: -max(s["last"] for s in by_dir[d])):
+			yield d, sorted(by_dir[d], key=lambda s: -s["last"])
+
+	def header(d, group):
+		windows = sorted({s["window"] for s in group if s.get("window")})
+		missing = "" if os.path.isdir(d) else ", DIR MISSING"
+		return (f"## {d}  ({len(group)} session{'s' if len(group) != 1 else ''}"
+			+ (f", cursor window: {', '.join(windows)}" if windows else "") + f"{missing})")
+
+	stopped = [s for s in state.values() if not s["live"]]
+	running = [s for s in state.values() if s["live"]]
 	lines = [
-		f"# Claude sessions snapshot {now:%Y-%m-%d %H:%M:%S} ({len(sessions)} live)",
+		f"# Claude sessions, updated {now:%Y-%m-%d %H:%M:%S}: {len(stopped)} not running, {len(running)} running",
 		"# Paste a line into a terminal to resume that session. Not meant to be run as a whole.",
-		"# Per session: status, last activity, name, pid, memory, where.",
+		"# `claude-sessions --forget <id>` drops a session you don't want back.",
+		"",
+		"# ===== NOT RUNNING: resume these =====",
 		"",
 	]
-	for d in dirs:
-		group = sorted(by_dir[d], key=lambda s: -s["last"])
-		windows = sorted({s["window"] for s in group if s["window"]})
-		missing = "" if os.path.isdir(d) else ", DIR MISSING"
-		lines.append(f"## {d}  ({len(group)} session{'s' if len(group) != 1 else ''}"
-			+ (f", cursor window: {', '.join(windows)}" if windows else "") + f"{missing})")
+	for d, group in grouped(stopped):
+		lines.append(header(d, group))
 		for s in group:
-			note = "" if s["transcript"] else " · transcript not found"
+			gone = datetime.fromtimestamp(s["last_seen"]).strftime("%Y-%m-%d %H:%M")
+			lines.append(f"# stopped after {gone} · last active {ago(s['last'])} ago · {s['name'] or '(unnamed)'}"
+				f" · was pid {s['pid']} · {s['where']}")
+			lines.append(resume_line(s))
+		lines.append("")
+	lines += ["# ===== RUNNING NOW =====", ""]
+	for d, group in grouped(running):
+		lines.append(header(d, group))
+		for s in group:
+			l = live_by_id[s["id"]]
+			note = "" if s["resumable"] else " · no messages yet"
 			kind = f" · {s['kind']}" if s["kind"] and s["kind"] != "interactive" else ""
 			lines.append(f"# {s['status']} · {ago(s['last'])} ago · {s['name'] or '(unnamed)'} · pid {s['pid']}"
-				f" · {s['mb']:.0f} MB · {s['where']}{kind}{note}")
-			# bg sessions carry the daemon's own flags; a plain resume is what a person wants
-			flags = [] if s["kind"] == "bg" else resume_argv(s["argv"])
-			cmd = ["claude"] + flags + ["--resume", s["id"]]
-			lines.append(f"cd {shlex.quote(d)} && {' '.join(shlex.quote(a) for a in cmd)}")
+				f" · {l['mb']:.0f} MB · {s['where']}{kind}{note}")
+			lines.append(resume_line(s))
 		lines.append("")
-	return "\n".join(lines)
+	lines += ["# ===== OTHER PROCESSES IN CURSOR TERMINALS (they die when Cursor quits) =====", ""]
+	for j in sorted(jobs, key=lambda j: j["cwd"]):
+		lines.append(f"# {j['cwd']}  (pid {j['pid']})")
+		lines.append(f"#   {j['command'][:300]}")
+	return "\n".join(lines) + "\n"
 
+
+# ---- drafts: read what Cursor saved about its terminals on quit ------------
+
+ANSI_FORWARD = re.compile(r"\x1b\[(\d*)C")
+ANSI_OTHER = re.compile(r"\x1b\[[0-9;?<>=!]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()*+][0-9A-Za-z]|\x1b[=>78NOMDEHc]|[\x0e\x0f]")
+RULE = re.compile(r"^\s*─{20,}")
+
+
+def plain_lines(data):
+	data = ANSI_FORWARD.sub(lambda m: " " * int(m.group(1) or 1), data)
+	data = ANSI_OTHER.sub("", data)
+	return [l.rstrip() for l in data.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+
+
+def input_box(lines):
+	"""Text in Claude's input box (between two ─── rules, starting with ❯) on
+	the last screen. Menus (`❯ 1. Yes`) are Claude asking, not a draft."""
+	for i in range(len(lines) - 1, max(-1, len(lines) - 60), -1):
+		if lines[i].lstrip().startswith("❯") and any(RULE.match(lines[j]) for j in range(max(0, i - 2), i)):
+			body = [lines[i].lstrip()[1:]]
+			for l in lines[i + 1:]:
+				if RULE.match(l):
+					break
+				body.append(l)
+			text = "\n".join(b.rstrip() for b in body).strip("\n")
+			if re.match(r"\s*\d+\.\s", text):
+				return None
+			return "\n".join(l[2:] if l.startswith("  ") else l for l in text.split("\n")).strip()
+	return None
+
+
+def saved_workspaces():
+	"""Yield (folder, saved entries, terminal ids in the layout) for every
+	Cursor workspace with terminal contents saved for reviving (on Cmd+Q)."""
+	for wj in glob.glob(os.path.join(CURSOR_WS, "*", "workspace.json")):
+		try:
+			w = json.load(open(wj))
+		except (OSError, ValueError):
+			continue
+		uri = w.get("folder") or w.get("workspace") or ""
+		folder = unquote(urlparse(uri).path) if uri.startswith("file://") else uri
+		db = os.path.join(os.path.dirname(wj), "state.vscdb")
+		if not os.path.exists(db):
+			continue
+		try:
+			con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=10)
+			rows = dict(con.execute("select key, value from ItemTable where key in "
+				"('terminal.integrated.bufferState', 'terminal.integrated.layoutInfo')").fetchall())
+			con.close()
+		except sqlite3.Error:
+			continue
+		if "terminal.integrated.bufferState" not in rows:
+			continue
+		try:
+			blob = json.loads(rows["terminal.integrated.bufferState"])
+			if isinstance(blob, str):
+				blob = json.loads(blob)
+			layout = json.loads(rows.get("terminal.integrated.layoutInfo") or "{}")
+		except ValueError:
+			continue
+		ids = {t.get("terminal") for tab in layout.get("tabs", []) for t in tab.get("terminals", [])}
+		yield folder, blob.get("state", []), ids
+
+
+def drafts(state, now, out_dir, since_hours):
+	"""Pull every recently saved terminal's text, and any unsent input-box
+	text, from Cursor's workspace storage. Returns None when nothing recent
+	was saved. Workspaces keep saves from old quits too, hence the cutoff."""
+	cutoff = now.timestamp() - since_hours * 3600
+	dump_dir = os.path.join(out_dir, f"terminals-{now:%Y-%m-%d_%H%M%S}")
+	found, saved_at, count, missing = [], [], 0, []
+	entries, saved_ws = [], set()
+	for folder, saved, ids in saved_workspaces():
+		recent = [e for e in saved if (e.get("timestamp") or 0) / 1000 >= cutoff]
+		if not recent:
+			continue
+		ws = os.path.basename(folder.rstrip("/"))
+		saved_ws.add(ws)
+		entries += [(folder, e) for e in recent]
+		lost = ids - {e.get("id") for e in recent}
+		if lost:  # Cursor gives the save 2s at quit; under load some can miss it
+			missing.append((ws, f"{len(lost)} of {len(ids)} terminals were not saved"))
+	try:
+		windows = json.load(open(WINDOWS)).get("windows", [])
+	except (OSError, ValueError):
+		windows = []
+	for w in windows:
+		if w not in saved_ws:
+			missing.append((w, "no terminal was saved (window closed earlier, or the save missed Cursor's 2s limit)"))
+	for folder, e in entries:
+		details = e.get("processDetails") or {}
+		title = details.get("title") or "terminal"
+		cwd = details.get("cwd") or folder
+		data = "".join(ev.get("data", "") for ev in (e.get("replayEvent") or {}).get("events", []))
+		if not data:
+			continue
+		ts = (e.get("timestamp") or 0) / 1000
+		saved_at.append(ts)
+		lines = plain_lines(data)
+		count += 1
+		ws = os.path.basename(folder.rstrip("/")) or "workspace"
+		safe = re.sub(r"[^A-Za-z0-9._-]+", "_", re.sub(r"^\W+", "", title))[:60] or "terminal"
+		os.makedirs(os.path.join(dump_dir, ws), exist_ok=True)
+		with open(os.path.join(dump_dir, ws, f"{count:03d}-{safe}.txt"), "w") as f:
+			f.write(f"# {cwd}  ({title}, saved {datetime.fromtimestamp(ts):%Y-%m-%d %H:%M})\n")
+			f.write("\n".join(lines).rstrip() + "\n")
+		text = input_box(lines)
+		if text:
+			name = re.sub(r"^\W+", "", title).strip()
+			match = [s for s in state.values() if s["cwd"] == cwd and s["name"] and s["name"] == name]
+			found.append({"window": ws, "title": title, "cwd": cwd, "text": text, "match": match})
+	if not count:
+		return None
+	path = os.path.join(out_dir, f"drafts-{now:%Y-%m-%d_%H%M%S}.md")
+	with open(path, "w") as f:
+		f.write(f"# Unsent Claude drafts, pulled from Cursor's saved terminals ({now:%Y-%m-%d %H:%M})\n\n")
+		for d in found:
+			f.write(f"## {d['window']}: {d['title']}\n{d['cwd']}\n\n```\n{d['text']}\n```\n")
+			for s in d["match"]:
+				f.write(f"resume: `{resume_line(s)}`\n")
+			f.write("\n")
+		if not found:
+			f.write("No unsent text in any Claude input box.\n")
+		for ws, what in missing:
+			f.write(f"\nWARNING: {ws}: {what}; check its terminals for drafts when it reopens.\n")
+	return path, found, saved_at, dump_dir, missing
+
+
+# ---- stopping ---------------------------------------------------------------
 
 def gone(pid):
 	try:
@@ -268,8 +496,7 @@ def descendants(pid, procs):
 	return out
 
 
-def stop(sessions, dry_run):
-	procs = ps_table()
+def stop(sessions, procs, dry_run):
 	for s in sessions:
 		label = f"pid {s['pid']} {s['name'] or s['id']} ({s['cwd']})"
 		if dry_run:
@@ -297,48 +524,59 @@ def stop(sessions, dry_run):
 		print(f"  stopped {label}" + (f"; also ended leftover children: {', '.join(cleaned)}" if cleaned else ""))
 
 
+def write(state, live, procs, now):
+	text = render(state, {s["id"]: s for s in live}, terminal_jobs(procs), now)
+	latest = os.path.join(OUT_DIR, "latest.sh")
+	with open(latest + ".tmp", "w") as f:
+		f.write(text)
+	os.replace(latest + ".tmp", latest)
+	with open(os.path.join(OUT_DIR, "history", f"{now:%Y-%m-%d_%H%M%S}.sh"), "w") as f:
+		f.write(text)
+	save_state(state)
+	return latest
+
+
 def main():
 	ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-	ap.add_argument("-o", "--output", help="write the snapshot here instead of the state dir")
-	ap.add_argument("--stop-idle", type=float, metavar="HOURS", help="after the snapshot, exit sessions idle >= HOURS")
-	ap.add_argument("--stop", type=int, nargs="+", metavar="PID", help="after the snapshot, exit these sessions")
+	ap.add_argument("--stop-idle", type=float, metavar="HOURS", help="exit sessions idle >= HOURS")
+	ap.add_argument("--stop", type=int, nargs="+", metavar="PID", help="exit these sessions")
 	ap.add_argument("--keep", type=int, nargs="+", default=[], metavar="PID", help="never stop these (e.g. unsent drafts)")
 	ap.add_argument("--include-waiting", action="store_true", help="also stop sessions waiting for your answer")
 	ap.add_argument("--dry-run", action="store_true", help="with --stop/--stop-idle: only show what would be stopped")
+	ap.add_argument("--drafts", action="store_true", help="pull unsent drafts from Cursor's saved terminals (after Cmd+Q)")
+	ap.add_argument("--since", type=float, default=12, metavar="HOURS", help="with --drafts: only terminals saved in the last HOURS (12)")
+	ap.add_argument("--forget", nargs="+", metavar="ID|PID", help="drop these sessions from the list")
 	args = ap.parse_args()
 	protected = {"busy"} | (set() if args.include_waiting else {"waiting"})
 
+	os.makedirs(os.path.join(OUT_DIR, "history"), exist_ok=True)
 	now = datetime.now()
-	sessions = collect()
-	text = render(sessions, now)
+	procs = ps_table()
+	live = collect(procs)
+	windows = sorted(cursor_window_names(procs))
+	if windows:  # remembered so --drafts can tell which windows' terminals weren't saved
+		with open(WINDOWS, "w") as f:
+			json.dump({"at": now.timestamp(), "windows": windows}, f, indent=1)
+	state = load_state()
+	merge(state, live, now.timestamp())
 
-	if args.output:
-		path = args.output
-	else:
-		os.makedirs(OUT_DIR, exist_ok=True)
-		path = os.path.join(OUT_DIR, f"{now:%Y-%m-%d_%H%M%S}.sh")
-	with open(path, "w") as f:
-		f.write(text + "\n")
-	if not args.output:
-		latest = os.path.join(OUT_DIR, "latest.sh")
-		if os.path.lexists(latest):
-			os.remove(latest)
-		os.symlink(os.path.basename(path), latest)
-
-	dirs = defaultdict(int)
-	for s in sessions:
-		dirs[s["cwd"]] += 1
-	print(f"{len(sessions)} live sessions in {len(dirs)} dirs, {sum(s['mb'] for s in sessions) / 1024:.1f} GB (claude processes only)")
-	print(f"resume file: {path}")
+	if args.forget:
+		for f in args.forget:
+			hits = [sid for sid, s in state.items() if sid.startswith(f) or str(s["pid"]) == f]
+			for sid in hits:
+				print(f"  forgot {sid} {state[sid]['name']}" + (" (still running)" if state[sid]["live"] else ""))
+				del state[sid]
+			if not hits:
+				print(f"  no session matches {f}")
 
 	targets = []
 	if args.stop_idle is not None:
 		cutoff = time.time() - args.stop_idle * 3600
-		targets = [s for s in sessions if s["last"] <= cutoff]
+		targets = [s for s in live if s["last"] <= cutoff]
 	if args.stop:
 		want = set(args.stop)
-		targets += [s for s in sessions if s["pid"] in want and s not in targets]
-		unknown = want - {s["pid"] for s in sessions}
+		targets += [s for s in live if s["pid"] in want and s not in targets]
+		unknown = want - {s["pid"] for s in live}
 		if unknown:
 			print(f"  not live claude sessions: {', '.join(map(str, sorted(unknown)))}")
 	for s in list(targets):
@@ -346,12 +584,42 @@ def main():
 			why = "kept (--keep)" if s["pid"] in args.keep else s["kind"] if s["kind"] == "bg" else s["status"]
 			print(f"  skipping pid {s['pid']} {s['name']}: {why}")
 			targets.remove(s)
+
+	# Write the list before stopping anything, so every stopped session is in it.
+	latest = write(state, live, procs, now)
+	stopped_n = sum(1 for s in state.values() if not s["live"])
+	print(f"{len(live)} running sessions ({sum(s['mb'] for s in live) / 1024:.1f} GB), {stopped_n} not running")
+	print(f"resume list: {latest}")
+
 	if targets:
 		mb = sum(s["mb"] for s in targets)
 		print(f"{'would stop' if args.dry_run else 'stopping'} {len(targets)} session(s), {mb / 1024:.1f} GB:")
-		stop(sorted(targets, key=lambda s: s["last"]), args.dry_run)
+		stop(sorted(targets, key=lambda s: s["last"]), procs, args.dry_run)
+		if not args.dry_run:
+			procs = ps_table()
+			live = collect(procs)
+			merge(state, live, now.timestamp())
+			write(state, live, procs, now)
+			print(f"resume list updated: {sum(1 for s in state.values() if not s['live'])} not running")
 	elif args.stop_idle is not None or args.stop:
 		print("nothing to stop")
+
+	if args.drafts:
+		if subprocess.run(["pgrep", "-f", "Cursor.app/Contents/MacOS/Cursor$"], capture_output=True).returncode == 0:
+			print("note: Cursor is running; its terminals are saved when it quits (Cmd+Q), so this may be stale or empty")
+		res = drafts(state, now, OUT_DIR, args.since)
+		if not res:
+			print(f"no Cursor terminal contents saved in the last {args.since:g}h (Cursor writes them when it quits with Cmd+Q)")
+			return
+		path, found, saved_at, dump_dir, missing = res
+		print(f"terminal contents from {len(saved_at)} terminals (saved {datetime.fromtimestamp(min(saved_at)):%m-%d %H:%M}"
+			f" to {datetime.fromtimestamp(max(saved_at)):%m-%d %H:%M}): {dump_dir}")
+		print(f"{len(found)} unsent draft(s): {path}")
+		for d in found:
+			first = d["text"].splitlines()[0][:80]
+			print(f"  {d['window']}: {d['title']}: {first}")
+		for ws, what in missing:
+			print(f"WARNING: {ws}: {what}; check its terminals for drafts when it reopens")
 
 
 if __name__ == "__main__":

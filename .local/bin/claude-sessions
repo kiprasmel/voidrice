@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+
+"""
+claude-sessions: snapshot running Claude Code sessions into a resume file.
+
+Writes one `cd <dir> && claude <original flags> --resume <id>` line per live
+session, grouped by directory (most recently active first), to
+~/.local/state/claude-sessions/<timestamp>.sh; latest.sh points at the newest.
+
+Usage:
+  claude-sessions                       snapshot only
+  claude-sessions --stop-idle HOURS     snapshot, then exit sessions idle >= HOURS
+  claude-sessions --stop PID [PID ...]  snapshot, then exit those sessions
+  add --dry-run to see what would be stopped without stopping anything
+
+Stopping never touches a session whose status is "busy". The snapshot is
+written first, so every stopped session has its resume line.
+"""
+
+import argparse
+import ctypes
+import ctypes.util
+import glob
+import json
+import os
+import re
+import shlex
+import signal
+import subprocess
+import sys
+import time
+from collections import defaultdict
+from datetime import datetime
+
+HOME = os.path.expanduser("~")
+REGISTRY = os.path.join(HOME, ".claude/sessions")
+PROJECTS = os.path.join(HOME, ".claude/projects")
+OUT_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.join(HOME, ".local/state")), "claude-sessions")
+
+# Flags that pick which conversation to open; the resume line supplies its own.
+SESSION_FLAGS_WITH_VALUE = {"--resume", "-r", "--session-id", "--resume-session-at"}
+SESSION_FLAGS = {"--continue", "-c", "--fork-session"}
+
+libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+
+
+def argv_of(pid):
+	"""Exact argv via sysctl KERN_PROCARGS2 (ps joins args with spaces)."""
+	CTL_KERN, KERN_ARGMAX, KERN_PROCARGS2 = 1, 8, 49
+	argmax = ctypes.c_int(0)
+	size = ctypes.c_size_t(ctypes.sizeof(argmax))
+	mib = (ctypes.c_int * 2)(CTL_KERN, KERN_ARGMAX)
+	if libc.sysctl(mib, 2, ctypes.byref(argmax), ctypes.byref(size), None, 0) != 0:
+		return None
+	buf = ctypes.create_string_buffer(argmax.value)
+	size = ctypes.c_size_t(argmax.value)
+	mib3 = (ctypes.c_int * 3)(CTL_KERN, KERN_PROCARGS2, pid)
+	if libc.sysctl(mib3, 3, buf, ctypes.byref(size), None, 0) != 0:
+		return None
+	raw = buf.raw[: size.value]
+	argc = int.from_bytes(raw[:4], "little")
+	rest = raw[4:]
+	i = rest.find(b"\0")  # skip the exec path and its NUL padding
+	while i < len(rest) and rest[i] == 0:
+		i += 1
+	return [a.decode(errors="replace") for a in rest[i:].split(b"\0")[:argc]]
+
+
+def ps_table():
+	# The registry's procStart is UTC; match it to tell a reused pid apart.
+	env = dict(os.environ, TZ="UTC", LC_ALL="C")
+	out = subprocess.run(["ps", "-axo", "pid=,ppid=,lstart=,command="], capture_output=True, text=True, env=env).stdout
+	procs = {}
+	for line in out.splitlines():
+		parts = line.split(None, 7)
+		if len(parts) < 8:
+			continue
+		pid, ppid = int(parts[0]), int(parts[1])
+		lstart = " ".join(parts[2:7])  # e.g. "Wed Sep 30 14:25:01 2026"
+		procs[pid] = {"ppid": ppid, "lstart": lstart, "command": parts[7]}
+	return procs
+
+
+def footprints_mb(pids):
+	"""Physical footprint (what Activity Monitor shows), not RSS."""
+	want = set(pids)
+	if not want:
+		return {}
+	out = subprocess.run(["top", "-l", "1", "-n", "5000", "-stats", "pid,mem"], capture_output=True, text=True).stdout
+	mem = {}
+	for line in out.splitlines():
+		m = re.match(r"\s*(\d+)\s+([\d.]+)([BKMGT])", line)
+		if m and int(m.group(1)) in want:
+			mem[int(m.group(1))] = float(m.group(2)) * {"B": 1 / 1048576, "K": 1 / 1024, "M": 1, "G": 1024, "T": 1048576}[m.group(3)]
+	return mem
+
+
+def where(pid, procs):
+	"""cursor:<window> / tmux / iterm / other, from the ancestor chain + cwd."""
+	chain, p = [], pid
+	while p in procs and p > 1:
+		chain.append(procs[p]["command"])
+		p = procs[p]["ppid"]
+	joined = "\n".join(chain)
+	if "Cursor Helper: terminal pty-host" in joined:
+		return "cursor"
+	if "tmux" in joined:
+		return "tmux"
+	if "iTerm" in joined:
+		return "iterm"
+	return "other"
+
+
+def cursor_window_names(procs):
+	names = set()
+	for d in procs.values():
+		m = re.search(r"extension-host \(user\) (\S+) \[", d["command"])
+		if m:
+			names.add(m.group(1))
+	return names
+
+
+def window_for(cwd, names):
+	# deepest path component that is an open Cursor window's folder
+	for part in reversed(cwd.split("/")):
+		if part in names:
+			return part
+	return None
+
+
+def transcript_of(session_id):
+	hits = glob.glob(os.path.join(PROJECTS, "*", session_id + ".jsonl"))
+	return max(hits, key=os.path.getmtime) if hits else None
+
+
+def last_message_ts(path):
+	"""Timestamp of the last user/assistant entry. The file's mtime moves
+	without new messages, so it can't stand in for activity."""
+	size = os.path.getsize(path)
+	with open(path, "rb") as f:
+		f.seek(max(0, size - (1 << 20)))
+		tail = f.read().splitlines()
+	for line in reversed(tail):
+		try:
+			e = json.loads(line)
+		except ValueError:
+			continue
+		if e.get("type") in ("user", "assistant") and e.get("timestamp"):
+			return datetime.fromisoformat(e["timestamp"].replace("Z", "+00:00")).timestamp()
+	return 0
+
+
+def resume_argv(argv):
+	out, skip = [], False
+	for a in argv[1:]:
+		if skip:
+			skip = False
+			continue
+		if a in SESSION_FLAGS_WITH_VALUE:
+			skip = True
+			continue
+		if a in SESSION_FLAGS or any(a.startswith(f + "=") for f in SESSION_FLAGS_WITH_VALUE):
+			continue
+		out.append(a)
+	return out
+
+
+def ago(ts):
+	s = max(0, time.time() - ts)
+	if s < 3600:
+		return f"{s / 60:.0f}m"
+	if s < 86400:
+		return f"{s / 3600:.1f}h"
+	return f"{s / 86400:.1f}d"
+
+
+def collect():
+	procs = ps_table()
+	names = cursor_window_names(procs)
+	sessions = []
+	for f in glob.glob(os.path.join(REGISTRY, "*.json")):
+		try:
+			d = json.load(open(f))
+		except (OSError, ValueError):
+			continue
+		pid = d.get("pid")
+		p = procs.get(pid)
+		if not p:
+			continue
+		argv = argv_of(pid) or p["command"].split()
+		if not argv or os.path.basename(argv[0]) != "claude":
+			continue  # pid reused by something else
+		if d.get("procStart") and " ".join(d["procStart"].split()) != p["lstart"]:
+			continue  # registry file from an older process with the same pid
+		sid = d.get("sessionId")
+		if not sid:
+			continue
+		tr = transcript_of(sid)
+		status_ts = (d.get("statusUpdatedAt") or d.get("updatedAt") or 0) / 1000
+		last = max(status_ts, last_message_ts(tr) if tr else 0)
+		cwd = d.get("cwd") or ""
+		sessions.append({
+			"pid": pid,
+			"id": sid,
+			"cwd": cwd,
+			"name": d.get("name") or "",
+			"status": d.get("status") or "?",
+			"kind": d.get("kind") or "",
+			"last": last,
+			"argv": argv,
+			"transcript": tr,
+			"where": where(pid, procs),
+			"window": window_for(cwd, names),
+		})
+	mem = footprints_mb([s["pid"] for s in sessions])
+	for s in sessions:
+		s["mb"] = mem.get(s["pid"], 0)
+	return sessions
+
+
+def render(sessions, now):
+	by_dir = defaultdict(list)
+	for s in sessions:
+		by_dir[s["cwd"]].append(s)
+	dirs = sorted(by_dir, key=lambda d: -max(s["last"] for s in by_dir[d]))
+	lines = [
+		f"# Claude sessions snapshot {now:%Y-%m-%d %H:%M:%S} ({len(sessions)} live)",
+		"# Paste a line into a terminal to resume that session. Not meant to be run as a whole.",
+		"# Per session: status, last activity, name, pid, memory, where.",
+		"",
+	]
+	for d in dirs:
+		group = sorted(by_dir[d], key=lambda s: -s["last"])
+		windows = sorted({s["window"] for s in group if s["window"]})
+		missing = "" if os.path.isdir(d) else ", DIR MISSING"
+		lines.append(f"## {d}  ({len(group)} session{'s' if len(group) != 1 else ''}"
+			+ (f", cursor window: {', '.join(windows)}" if windows else "") + f"{missing})")
+		for s in group:
+			note = "" if s["transcript"] else " · transcript not found"
+			kind = f" · {s['kind']}" if s["kind"] and s["kind"] != "interactive" else ""
+			lines.append(f"# {s['status']} · {ago(s['last'])} ago · {s['name'] or '(unnamed)'} · pid {s['pid']}"
+				f" · {s['mb']:.0f} MB · {s['where']}{kind}{note}")
+			# bg sessions carry the daemon's own flags; a plain resume is what a person wants
+			flags = [] if s["kind"] == "bg" else resume_argv(s["argv"])
+			cmd = ["claude"] + flags + ["--resume", s["id"]]
+			lines.append(f"cd {shlex.quote(d)} && {' '.join(shlex.quote(a) for a in cmd)}")
+		lines.append("")
+	return "\n".join(lines)
+
+
+def gone(pid):
+	try:
+		os.kill(pid, 0)
+	except ProcessLookupError:
+		return True
+	stat = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+	return stat.startswith("Z")  # exited, parent hasn't reaped it yet
+
+
+def descendants(pid, procs):
+	kids = [p for p, d in procs.items() if d["ppid"] == pid]
+	out = list(kids)
+	for k in kids:
+		out += descendants(k, procs)
+	return out
+
+
+def stop(sessions, dry_run):
+	procs = ps_table()
+	for s in sessions:
+		label = f"pid {s['pid']} {s['name'] or s['id']} ({s['cwd']})"
+		if dry_run:
+			print(f"  would stop {label}")
+			continue
+		kids = descendants(s["pid"], procs)  # MCP servers etc.
+		# SIGTERM exits cleanly: restores the terminal, removes the registry
+		# entry, closes MCP stdio. Big swapped-out sessions can take a while.
+		os.kill(s["pid"], signal.SIGTERM)
+		for _ in range(200):
+			if gone(s["pid"]):
+				break
+			time.sleep(0.1)
+		else:
+			os.kill(s["pid"], signal.SIGKILL)
+			print(f"  pid {s['pid']} ignored SIGTERM for 20s, killed; run `reset` in its terminal if the prompt looks off")
+		time.sleep(0.5)
+		cleaned = []
+		for k in kids:  # stdio MCP servers usually exit on EOF; reap stragglers
+			try:
+				os.kill(k, signal.SIGTERM)
+				cleaned.append(os.path.basename(procs[k]["command"].split()[0]))
+			except ProcessLookupError:
+				pass
+		print(f"  stopped {label}" + (f"; also ended leftover children: {', '.join(cleaned)}" if cleaned else ""))
+
+
+def main():
+	ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+	ap.add_argument("-o", "--output", help="write the snapshot here instead of the state dir")
+	ap.add_argument("--stop-idle", type=float, metavar="HOURS", help="after the snapshot, exit sessions idle >= HOURS")
+	ap.add_argument("--stop", type=int, nargs="+", metavar="PID", help="after the snapshot, exit these sessions")
+	ap.add_argument("--dry-run", action="store_true", help="with --stop/--stop-idle: only show what would be stopped")
+	args = ap.parse_args()
+
+	now = datetime.now()
+	sessions = collect()
+	text = render(sessions, now)
+
+	if args.output:
+		path = args.output
+	else:
+		os.makedirs(OUT_DIR, exist_ok=True)
+		path = os.path.join(OUT_DIR, f"{now:%Y-%m-%d_%H%M%S}.sh")
+	with open(path, "w") as f:
+		f.write(text + "\n")
+	if not args.output:
+		latest = os.path.join(OUT_DIR, "latest.sh")
+		if os.path.lexists(latest):
+			os.remove(latest)
+		os.symlink(os.path.basename(path), latest)
+
+	dirs = defaultdict(int)
+	for s in sessions:
+		dirs[s["cwd"]] += 1
+	print(f"{len(sessions)} live sessions in {len(dirs)} dirs, {sum(s['mb'] for s in sessions) / 1024:.1f} GB (claude processes only)")
+	print(f"resume file: {path}")
+
+	targets = []
+	if args.stop_idle is not None:
+		cutoff = time.time() - args.stop_idle * 3600
+		targets = [s for s in sessions if s["status"] != "busy" and s["last"] <= cutoff]
+	if args.stop:
+		want = set(args.stop)
+		targets += [s for s in sessions if s["pid"] in want and s not in targets]
+		for s in list(targets):
+			if s["status"] == "busy":
+				print(f"  skipping pid {s['pid']}: busy")
+				targets.remove(s)
+		unknown = want - {s["pid"] for s in sessions}
+		if unknown:
+			print(f"  not live claude sessions: {', '.join(map(str, sorted(unknown)))}")
+	if targets:
+		mb = sum(s["mb"] for s in targets)
+		print(f"{'would stop' if args.dry_run else 'stopping'} {len(targets)} session(s), {mb / 1024:.1f} GB:")
+		stop(sorted(targets, key=lambda s: s["last"]), args.dry_run)
+	elif args.stop_idle is not None or args.stop:
+		print("nothing to stop")
+
+
+if __name__ == "__main__":
+	sys.exit(main())

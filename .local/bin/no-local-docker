@@ -1,0 +1,54 @@
+#!/bin/sh
+# Local docker is disabled on this Mac; docker work runs in codespace sandboxes.
+#
+# no-local-docker.d/ holds symlinks to this script named docker, docker-compose,
+# orb, orbctl and open, and sits first in PATH (~/.zshrc). As docker/orb they
+# print where to go instead and fail. As open they refuse only OrbStack/Docker
+# and hand everything else to /usr/bin/open. `no-local-docker` alone prints the
+# message (the Claude Code hook claude-hook-no-local-docker reuses it).
+
+message() {
+	cat >&2 <<'EOF'
+Local docker is disabled on this Mac on purpose: OrbStack and Docker Desktop are
+switched off and there is no local daemon. Do not install, start or open them.
+
+Run anything that needs docker in a codespace sandbox instead:
+  codespace test [suite...] [-- args]   run the stack's test suites in a leased sandbox (codespace test -h)
+  codespace dev -r                      bring the stack's services up in its remote sandbox
+  codespace sandbox ls                  list sandboxes
+  ssh cs-sandbox-<slug> '<command>'     run a command (docker included) in a sandbox; code is under /codespace
+(`codespace dev ssh` only opens an interactive shell; it ignores a command.)
+EOF
+}
+
+name=$(basename "$0")
+
+if [ "$name" = open ]; then
+	prev=
+	for arg in "$@"; do
+		case "$prev" in
+		-a | -b)
+			case "$arg" in
+			[Oo]rb[Ss]tack* | [Dd]ocker* | dev.orbstack.* | com.docker.*)
+				echo "open: refusing to launch $arg." >&2
+				message
+				exit 1
+				;;
+			esac
+			;;
+		esac
+		case "$arg" in
+		*[Oo]rb[Ss]tack.app* | *[Dd]ocker.app*)
+			echo "open: refusing to launch $arg." >&2
+			message
+			exit 1
+			;;
+		esac
+		prev=$arg
+	done
+	exec /usr/bin/open "$@"
+fi
+
+[ "$name" = no-local-docker ] || echo "$name: local docker is disabled." >&2
+message
+exit 1

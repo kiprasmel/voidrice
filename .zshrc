@@ -597,3 +597,6 @@ fi
 test -z "$RUN_PROFILER" || zprof
 
 
+# local docker is disabled: docker, docker-compose, orb, orbctl and `open -a OrbStack`
+# say where to run docker instead (~/.local/bin/no-local-docker). Last, so it stays first in PATH.
+export PATH="$HOME/.local/bin/no-local-docker.d:$PATH"

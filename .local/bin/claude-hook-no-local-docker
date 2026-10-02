@@ -1,0 +1,27 @@
+#!/bin/sh
+# Claude Code PreToolUse hook (Bash): refuse commands that would install or
+# start a local docker runtime, and tell the agent to use a codespace sandbox.
+#
+# Plain `docker ...` is left to the no-local-docker shim, which answers it at
+# run time; here we only catch what the shim cannot see: launching the apps by
+# path or via `open`, installing them, and other VM runtimes. Removing them
+# (brew uninstall, rm) or parking them as *.app.disabled stays allowed.
+
+cmd=$(jq -r '.tool_input.command // empty')
+[ -n "$cmd" ] || exit 0
+
+# Heredoc bodies are text (commit messages, docs), not commands: drop them.
+cmd=$(printf '%s\n' "$cmd" | perl -0777 -pe 's/((?<!<)<<(?!<)-?[ \t]*([\x27"]?)(\w+)\2[^\n]*\n)(?:.*?\n)??[ \t]*\3[ \t]*(?=\n|\z)/$1/gs')
+
+printf '%s' "$cmd" | grep -qiE 'brew[[:space:]]+(uninstall|remove|rm)|(^|[;&|[:space:]])rm[[:space:]]|\.app"?[[:space:]]+"?[^;&|]*\.app\.disabled' && exit 0
+
+pattern='(orbstack|docker)\.app|(^|[;&|(`[:space:]])open[[:space:]][^;&|]*(-a|-b)[[:space:]]+"?'"'"'?(orbstack|docker|dev\.orbstack|com\.docker)'
+pattern="$pattern"'|brew[[:space:]]+(install|reinstall|upgrade)[^;&|]*(orbstack|docker-desktop|colima|podman|lima|[[:space:]]docker([[:space:]]|$))'
+pattern="$pattern"'|(^|[;&|(`[:space:]])(colima|limactl)[[:space:]]+(start|create)|podman[[:space:]]+machine[[:space:]]+(init|start)'
+pattern="$pattern"'|(^|[;&|(`[:space:]])(orb|orbctl)[[:space:]]+(start|restart|run|create|create-vm)'
+
+printf '%s' "$cmd" | grep -qiE "$pattern" || exit 0
+
+echo "Blocked by claude-hook-no-local-docker: this command would install or start local docker." >&2
+"$HOME/.local/bin/no-local-docker"
+exit 2

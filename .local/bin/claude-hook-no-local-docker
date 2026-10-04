@@ -15,7 +15,7 @@ cmd=$(printf '%s\n' "$cmd" | perl -0777 -pe 's/((?<!<)<<(?!<)-?[ \t]*([\x27"]?)(
 
 printf '%s' "$cmd" | grep -qiE 'brew[[:space:]]+(uninstall|remove|rm)|(^|[;&|[:space:]])rm[[:space:]]|\.app"?[[:space:]]+"?[^;&|]*\.app\.disabled' && exit 0
 
-pattern='(orbstack|docker)\.app|(^|[;&|(`[:space:]])open[[:space:]][^;&|]*(-a|-b)[[:space:]]+"?'"'"'?(orbstack|docker|dev\.orbstack|com\.docker)'
+pattern='(orbstack|docker)\.app([^.]|$)|(^|[;&|(`[:space:]])open[[:space:]][^;&|]*(-a|-b)[[:space:]]+"?'"'"'?(orbstack|docker|dev\.orbstack|com\.docker)'
 pattern="$pattern"'|brew[[:space:]]+(install|reinstall|upgrade)[^;&|]*(orbstack|docker-desktop|colima|podman|lima|[[:space:]]docker([[:space:]]|$))'
 pattern="$pattern"'|(^|[;&|(`[:space:]])(colima|limactl)[[:space:]]+(start|create)|podman[[:space:]]+machine[[:space:]]+(init|start)'
 pattern="$pattern"'|(^|[;&|(`[:space:]])(orb|orbctl)[[:space:]]+(start|restart|run|create|create-vm)'

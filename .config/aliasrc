@@ -523,8 +523,11 @@ rr() {
 }
 
 # vscode
+# Opens in the lean "Terminal" profile (vim, claude-code, terminal-title only;
+# settings and keybindings are symlinks to Default's), which Cursor then
+# remembers for the folder. For a full editor: `cursor --profile Default <dir>`.
 c() {
-	cursor --enable-proposed-api kiprasmel.terminal-title-context "$@"
+	cursor --profile Terminal --enable-proposed-api kiprasmel.terminal-title-context "$@"
 }
 compdef c="code"
 

@@ -5,12 +5,22 @@ claude-sessions: keep a resume list of Claude Code sessions, so they can be
 stopped (or Cursor restarted) without losing track of them.
 
 Every run merges the live sessions into ~/.local/state/claude-sessions/
-sessions.json and rewrites latest.sh from it: sessions that are no longer
-running come first, as `cd <dir> && claude <original flags> --resume <id>`
-lines grouped by directory, then the running ones, then other processes in
-Cursor terminals (dev servers etc., which die when Cursor quits). A session
-stays in the list until it runs again or you --forget it, so reruns never
-lose anything. Each run also leaves a copy in history/.
+sessions.json and rewrites latest.sh from it as `cd <dir> && claude <original
+flags> --resume <id>` lines grouped by directory: first the sessions killed
+without a clean exit (power loss, crash, kill -9), then the ones that exited
+or were stopped, then the running ones, then other processes in Cursor
+terminals (dev servers etc., which die when Cursor quits). A killed or
+stopped session stays in the list until it runs again or you --forget it;
+one that exited on its own (/exit, closed terminal or window, Cursor quit)
+drops off after EXITED_DAYS. History/ keeps a copy whenever the list changes.
+
+How a session ended comes from its transcript: Claude appends a cost-state
+entry when it exits, even on SIGTERM/SIGHUP, so a transcript that ends with
+anything else belongs to a process that died. Each run also adds such
+sessions from the last RECOVER_DAYS that it never saw running, so after a
+power loss the sessions that were open are in the list even if this script
+wasn't running at the time. The local.claude-sessions launchd agent runs it
+every 5 minutes and at login.
 
 Usage:
   claude-sessions                       update the list
@@ -34,6 +44,7 @@ which reads it from Cursor's saved terminal contents.
 import argparse
 import ctypes
 import ctypes.util
+import fcntl
 import glob
 import json
 import os
@@ -54,7 +65,13 @@ PROJECTS = os.path.join(HOME, ".claude/projects")
 OUT_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.join(HOME, ".local/state")), "claude-sessions")
 STATE = os.path.join(OUT_DIR, "sessions.json")
 WINDOWS = os.path.join(OUT_DIR, "cursor-windows.json")  # open windows as of the last run
+FORGOTTEN = os.path.join(OUT_DIR, "forgotten.json")  # --forget'ed ids, so recovery doesn't bring them back
 CURSOR_WS = os.path.join(HOME, "Library/Application Support/Cursor/User/workspaceStorage")
+PROMPTS = os.path.join(HOME, ".claude/history.jsonl")
+RECOVER_DAYS = 14  # how far back to look for killed sessions this script never saw running
+EXITED_DAYS = 14  # how long a session that exited on its own stays in the list
+# What `cl` passes; recovered sessions that ran with permissions skipped get it back.
+SKIP_PERMISSIONS = ["--dangerously-skip-permissions", "--allow-dangerously-skip-permissions"]
 
 # Flags that pick which conversation to open; the resume line supplies its own.
 SESSION_FLAGS_WITH_VALUE = {"--resume", "-r", "--session-id", "--resume-session-at"}
@@ -170,21 +187,55 @@ def transcript_of(session_id):
 	return max(hits, key=os.path.getmtime) if hits else None
 
 
-def last_message_ts(path):
-	"""Timestamp of the last user/assistant entry. The file's mtime moves
-	without new messages, so it can't stand in for activity."""
-	size = os.path.getsize(path)
+def tail_entries(path):
+	"""Parsed entries from the last MB of a transcript."""
 	with open(path, "rb") as f:
-		f.seek(max(0, size - (1 << 20)))
-		tail = f.read().splitlines()
-	for line in reversed(tail):
+		f.seek(max(0, os.path.getsize(path) - (1 << 20)))
+		lines = f.read().splitlines()
+	out = []
+	for line in lines:
 		try:
 			e = json.loads(line)
 		except ValueError:
-			continue
+			continue  # the first line is usually cut
+		if isinstance(e, dict):
+			out.append(e)
+	return out
+
+
+def last_message_ts(entries):
+	"""Timestamp of the last user/assistant entry. The file's mtime moves
+	without new messages, so it can't stand in for activity."""
+	for e in reversed(entries):
 		if e.get("type") in ("user", "assistant") and e.get("timestamp"):
 			return datetime.fromisoformat(e["timestamp"].replace("Z", "+00:00")).timestamp()
 	return 0
+
+
+def exited_cleanly(entries):
+	"""Claude appends a cost-state entry as it exits, whether by /exit, Ctrl-C
+	or a signal (closed terminal or window, Cursor quit, --stop). A process
+	that died without exiting (power loss, crash, kill -9) leaves some other
+	entry last."""
+	return bool(entries) and entries[-1].get("type") == "cost-state"
+
+
+def prompt_history():
+	"""session id -> its latest prompt from ~/.claude/history.jsonl. The
+	prompt's `project` is the directory that session's claude started in."""
+	out = {}
+	try:
+		with open(PROMPTS, "rb") as f:
+			for line in f:
+				try:
+					r = json.loads(line)
+				except ValueError:
+					continue
+				if isinstance(r, dict) and r.get("sessionId"):
+					out[r["sessionId"]] = r
+	except OSError:
+		pass
+	return out
 
 
 def resume_flags(argv, kind):
@@ -249,7 +300,7 @@ def collect(procs):
 			"name": d.get("name") or "",
 			"status": d.get("status") or "?",
 			"kind": kind,
-			"last": max(status_ts, last_message_ts(tr) if tr else 0),
+			"last": max(status_ts, last_message_ts(tail_entries(tr)) if tr else 0),
 			"flags": resume_flags(argv, kind),
 			"resumable": bool(tr),
 			"where": where(pid, procs),
@@ -291,6 +342,75 @@ def merge(state, live, now):
 		del state[sid]
 
 
+def recover(state, hist, names, forgotten, now):
+	"""Note how each session that isn't running ended, and add the ones this
+	script never saw running that died without a clean exit in the last
+	RECOVER_DAYS: those open when the laptop lost power, say. Ones it never
+	saw that exited cleanly were closed on purpose and stay out."""
+	newest = {}
+	for p in glob.glob(os.path.join(PROJECTS, "*", "*.jsonl")):
+		m = os.path.getmtime(p)
+		sid = os.path.basename(p)[:-6]
+		if m > newest.get(sid, (0, None))[0]:
+			newest[sid] = (m, p)
+	added = 0
+	for sid, (mtime, path) in newest.items():
+		s = state.get(sid)
+		if s is None and (mtime < now - RECOVER_DAYS * 86400 or sid in forgotten):
+			continue
+		if s is not None and (s["live"] or mtime <= s.get("checked", 0)):
+			continue  # running, or transcript unchanged since the last look
+		entries = tail_entries(path)
+		clean = exited_cleanly(entries)
+		h = hist.get(sid)
+		if s is None:
+			msgs = [e for e in entries if e.get("type") in ("user", "assistant")]
+			if clean or not msgs or any(e.get("entrypoint", "cli") != "cli" for e in msgs):
+				continue  # closed on purpose, never used, or not interactive (claude -p, SDK)
+			cwds = [e["cwd"] for e in entries if e.get("cwd")]
+			# the Bash tool's cd moves an entry's cwd; the prompt's project doesn't
+			cwd = h["project"] if h and h.get("project") else min(cwds, key=lambda c: c.count("/"), default="")
+			bypass = any(e.get("permissionMode") == "bypassPermissions" for e in entries)
+			title = next((e.get("customTitle") for e in reversed(entries) if e.get("type") == "custom-title"), "")
+			window = window_for(cwd, names)
+			s = state[sid] = {
+				"id": sid, "cwd": cwd, "name": title or "", "flags": SKIP_PERMISSIONS if bypass else [],
+				"kind": "", "where": "cursor" if window else "?", "window": window, "status": "killed",
+				"pid": None, "last": 0, "resumable": True, "first_seen": now, "last_seen": mtime,
+				"live": False, "recovered": True,
+			}
+			added += 1
+		elif h and h.get("project") and h["timestamp"] / 1000 > s["last_seen"]:
+			if s["cwd"] != h["project"]:  # resumed from another directory since this script saw it
+				s["cwd"], s["window"] = h["project"], None
+		s["ended"] = "exited" if clean else "killed"
+		s["ended_at"] = mtime
+		s["last"] = max(s["last"], last_message_ts(entries))
+		s["window"] = s.get("window") or window_for(s["cwd"], names)
+		if s["window"] and s["where"] == "?":
+			s["where"] = "cursor"  # recovered before Cursor had reopened its windows
+		s["checked"] = mtime
+	# exited on their own and long gone; killed and --stop'ed ones stay until resumed or forgotten
+	for sid in [k for k, s in state.items() if not s["live"] and s.get("ended") == "exited"
+			and not s.get("stopped") and s.get("ended_at", now) < now - EXITED_DAYS * 86400]:
+		del state[sid]
+	return added
+
+
+def load_forgotten():
+	try:
+		return set(json.load(open(FORGOTTEN)))
+	except (OSError, ValueError):
+		return set()
+
+
+def save_forgotten(ids):
+	tmp = FORGOTTEN + ".tmp"
+	with open(tmp, "w") as f:
+		json.dump(sorted(ids), f, indent=1)
+	os.replace(tmp, FORGOTTEN)
+
+
 def terminal_jobs(procs):
 	"""Commands run directly in Cursor terminal shells, other than claude:
 	dev servers, log tails and the like. They die when Cursor quits."""
@@ -302,7 +422,7 @@ def terminal_jobs(procs):
 	return [{"pid": p, "cwd": cwds.get(p, "?"), "command": procs[p]["command"]} for p in jobs]
 
 
-def render(state, live_by_id, jobs, now):
+def render(state, live_by_id, jobs, now, hist):
 	def grouped(items):
 		by_dir = defaultdict(list)
 		for s in items:
@@ -316,24 +436,36 @@ def render(state, live_by_id, jobs, now):
 		return (f"## {d}  ({len(group)} session{'s' if len(group) != 1 else ''}"
 			+ (f", cursor window: {', '.join(windows)}" if windows else "") + f"{missing})")
 
-	stopped = [s for s in state.values() if not s["live"]]
+	def prompt(s):
+		text = (hist.get(s["id"]) or {}).get("display", "").strip()
+		return [f"#   > {text.splitlines()[0][:120]}"] if text else []
+
+	def ended(s):
+		at = datetime.fromtimestamp(s.get("ended_at") or s["last_seen"]).strftime("%Y-%m-%d %H:%M")
+		what = {"killed": "last sign of life", "exited": "stopped by claude-sessions" if s.get("stopped") else "exited"}
+		pid = f" · was pid {s['pid']}" if s.get("pid") else ""
+		return (f"# {what.get(s.get('ended'), 'stopped after')} {at} · last active {ago(s['last'])} ago"
+			f" · {s['name'] or '(unnamed)'}{pid} · {s['where']}")
+
+	killed = [s for s in state.values() if not s["live"] and s.get("ended") == "killed"]
+	exited = [s for s in state.values() if not s["live"] and s.get("ended") != "killed"]
 	running = [s for s in state.values() if s["live"]]
 	lines = [
-		f"# Claude sessions, updated {now:%Y-%m-%d %H:%M:%S}: {len(stopped)} not running, {len(running)} running",
+		f"# Claude sessions, updated {now:%Y-%m-%d %H:%M:%S}: {len(killed)} killed, {len(exited)} exited or stopped,"
+		f" {len(running)} running",
 		"# Paste a line into a terminal to resume that session. Not meant to be run as a whole.",
 		"# `claude-sessions --forget <id>` drops a session you don't want back.",
 		"",
-		"# ===== NOT RUNNING: resume these =====",
-		"",
 	]
-	for d, group in grouped(stopped):
-		lines.append(header(d, group))
-		for s in group:
-			gone = datetime.fromtimestamp(s["last_seen"]).strftime("%Y-%m-%d %H:%M")
-			lines.append(f"# stopped after {gone} · last active {ago(s['last'])} ago · {s['name'] or '(unnamed)'}"
-				f" · was pid {s['pid']} · {s['where']}")
-			lines.append(resume_line(s))
-		lines.append("")
+	for title, items in (("KILLED WITHOUT A CLEAN EXIT (power loss, crash, kill -9): resume these", killed),
+			(f"EXITED OR STOPPED (/exit, closed terminal or window, Cursor quit, --stop; exited ones drop off"
+				f" after {EXITED_DAYS} days)", exited)):
+		lines += [f"# ===== {title} =====", ""]
+		for d, group in grouped(items):
+			lines.append(header(d, group))
+			for s in group:
+				lines += [ended(s)] + prompt(s) + [resume_line(s)]
+			lines.append("")
 	lines += ["# ===== RUNNING NOW =====", ""]
 	for d, group in grouped(running):
 		lines.append(header(d, group))
@@ -343,7 +475,7 @@ def render(state, live_by_id, jobs, now):
 			kind = f" · {s['kind']}" if s["kind"] and s["kind"] != "interactive" else ""
 			lines.append(f"# {s['status']} · {ago(s['last'])} ago · {s['name'] or '(unnamed)'} · pid {s['pid']}"
 				f" · {l['mb']:.0f} MB · {s['where']}{kind}{note}")
-			lines.append(resume_line(s))
+			lines += prompt(s) + [resume_line(s)]
 		lines.append("")
 	lines += ["# ===== OTHER PROCESSES IN CURSOR TERMINALS (they die when Cursor quits) =====", ""]
 	for j in sorted(jobs, key=lambda j: j["cwd"]):
@@ -526,14 +658,24 @@ def stop(sessions, procs, dry_run):
 		print(f"  stopped {label}" + (f"; also ended leftover children: {', '.join(cleaned)}" if cleaned else ""))
 
 
-def write(state, live, procs, now):
-	text = render(state, {s["id"]: s for s in live}, terminal_jobs(procs), now)
+def write(state, live, procs, now, hist):
+	text = render(state, {s["id"]: s for s in live}, terminal_jobs(procs), now, hist)
 	latest = os.path.join(OUT_DIR, "latest.sh")
 	with open(latest + ".tmp", "w") as f:
 		f.write(text)
 	os.replace(latest + ".tmp", latest)
-	with open(os.path.join(OUT_DIR, "history", f"{now:%Y-%m-%d_%H%M%S}.sh"), "w") as f:
-		f.write(text)
+	# The launchd agent runs this every few minutes; keep a copy only when the list changed.
+	mark = os.path.join(OUT_DIR, "history", ".last")
+	key = json.dumps(sorted((s["id"], s["live"], s.get("ended") or "") for s in state.values()))
+	try:
+		changed = open(mark).read() != key
+	except OSError:
+		changed = True
+	if changed:
+		with open(os.path.join(OUT_DIR, "history", f"{now:%Y-%m-%d_%H%M%S}.sh"), "w") as f:
+			f.write(text)
+		with open(mark, "w") as f:
+			f.write(key)
 	save_state(state)
 	return latest
 
@@ -552,6 +694,8 @@ def main():
 	protected = {"busy"} | (set() if args.include_waiting else {"waiting"})
 
 	os.makedirs(os.path.join(OUT_DIR, "history"), exist_ok=True)
+	lock = open(os.path.join(OUT_DIR, ".lock"), "w")
+	fcntl.flock(lock, fcntl.LOCK_EX)  # the launchd agent and a manual run can overlap
 	now = datetime.now()
 	procs = ps_table()
 	live = collect(procs)
@@ -561,6 +705,9 @@ def main():
 			json.dump({"at": now.timestamp(), "windows": windows}, f, indent=1)
 	state = load_state()
 	merge(state, live, now.timestamp())
+	forgotten = load_forgotten() - {s["id"] for s in live}  # running again: track it again
+	hist = prompt_history()
+	recovered = recover(state, hist, set(windows), forgotten, now.timestamp())
 
 	if args.forget:
 		for f in args.forget:
@@ -568,8 +715,10 @@ def main():
 			for sid in hits:
 				print(f"  forgot {sid} {state[sid]['name']}" + (" (still running)" if state[sid]["live"] else ""))
 				del state[sid]
+			forgotten.update(hits)
 			if not hits:
 				print(f"  no session matches {f}")
+	save_forgotten(forgotten)
 
 	targets = []
 	if args.stop_idle is not None:
@@ -588,9 +737,13 @@ def main():
 			targets.remove(s)
 
 	# Write the list before stopping anything, so every stopped session is in it.
-	latest = write(state, live, procs, now)
-	stopped_n = sum(1 for s in state.values() if not s["live"])
-	print(f"{len(live)} running sessions ({sum(s['mb'] for s in live) / 1024:.1f} GB), {stopped_n} not running")
+	latest = write(state, live, procs, now, hist)
+	killed_n = sum(1 for s in state.values() if not s["live"] and s.get("ended") == "killed")
+	exited_n = sum(1 for s in state.values() if not s["live"] and s.get("ended") != "killed")
+	print(f"{len(live)} running sessions ({sum(s['mb'] for s in live) / 1024:.1f} GB),"
+		f" {killed_n} killed without a clean exit, {exited_n} exited or stopped")
+	if recovered:
+		print(f"  {recovered} of the killed ones were never seen running by this script; recovered from their transcripts")
 	print(f"resume list: {latest}")
 
 	if targets:
@@ -601,7 +754,11 @@ def main():
 			procs = ps_table()
 			live = collect(procs)
 			merge(state, live, now.timestamp())
-			write(state, live, procs, now)
+			for s in targets:
+				if s["id"] in state and not state[s["id"]]["live"]:
+					state[s["id"]]["stopped"] = True  # parked on purpose: never ages out
+			recover(state, hist, set(windows), forgotten, now.timestamp())
+			write(state, live, procs, now, hist)
 			print(f"resume list updated: {sum(1 for s in state.values() if not s['live'])} not running")
 	elif args.stop_idle is not None or args.stop:
 		print("nothing to stop")

@@ -49,7 +49,6 @@ alias ka="killall" \
 	gpgexport="gpg --armor --export $*" \
 	gpgreload="gpg-connect-agent reloadagent /bye" \
 	yv="yarn version" \
-	ref="shortcuts >/dev/null; source ~/.config/shortcutrc" \
 	upc="sudo pacman -Syu; pkill -RTMIN+8 i3blocks" \
 	lsp="pacman -Qett --color=always | less" \
 	ffmpeg="ffmpeg -hide_banner" \
@@ -100,7 +99,7 @@ alias \
 alias \
 	lf="lfub" \
 	magit="nvim -c MagitOnly" \
-	ref="shortcuts >/dev/null; source ${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc ; source ${XDG_CONFIG_HOME:-$HOME/.config}/zshnameddirrc" \
+	ref="shortcuts >/dev/null; source ${XDG_CONFIG_HOME:-$HOME/.config}/shortcutrc ; source ${XDG_CONFIG_HOME:-$HOME/.config}/zshnameddirrc; rehash" \
 	weath="less -S ${XDG_DATA_HOME:-$HOME/.local/share}/weatherreport" \
 	# tmux="tmux -f ${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf"
 
@@ -543,6 +542,10 @@ compdef ci="code"
 
 cl() {
 	#echo -ne "\033]0;claude\007"
+	if [ "$PWD" = "$HOME" ]; then
+		cd "$HOME/tmp"
+	fi
+
 	claude --dangerously-skip-permissions --allow-dangerously-skip-permissions "$@"
 }
 

@@ -41,6 +41,7 @@ rp $HOME/reviewprojects
 misi $HOME/workprojects/misi
 si $HOME/sintra
 sintra $HOME/sintra
+orc $HOME/orchestrator
 prp $HOME/privateprojects
 pri $HOME/privateprojects/interactio
 prip $HOME/privateprojects/interactio/panel

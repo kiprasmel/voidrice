@@ -153,13 +153,9 @@ export XBAR_PLUGIN_DIR="$HOME/Library/Application Support/xbar/plugins"
 
 # https://github.com/kiprasmel/codespace
 export CODESPACE_CONFIG_ROOT="$HOME/projects/layer2"
-export CS_DEFAULT_CREATE_TYPE="stack"
 
 # npm package bs - do not build 'sharp' from source, just because i have libvips installed
 export SHARP_IGNORE_GLOBAL_LIBVIPS=1
-
-# disable claude code auto-updater
-export DISABLE_AUTOUPDATER=1
 
 # bun
 export BUN_INSTALL="$HOME/.bun"
@@ -171,6 +167,7 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 #  BEGIN SYSTEM-SPECIFC  #
 #                        #
 ##########################
+
 case "$OSTYPE" in
   solaris*) echo "SOLARIS" ;;
   darwin*)

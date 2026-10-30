@@ -28,9 +28,9 @@ rel() {
 	popd
 
 	# reload configs
+	"$HOME/.local/bin/shortcuts"
 	source "$HOME/.zshrc"
 	source "$HOME/.profile"
-	"$HOME/.local/bin/shortcuts"
 }
 
 # handle mac-os specifics

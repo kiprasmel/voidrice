@@ -418,11 +418,9 @@
 	wt = worktree
 	wta = worktree add
 	wtr = worktree remove
-
-	# https://github.com/kiprasmel/codespace
+	# https://orchestrator.cloud
 	codespace = "!codespace"
 	cs = !codespace
-	css = !codespace stack
 
 	#x =
 	#y =

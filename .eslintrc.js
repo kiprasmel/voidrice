@@ -13,7 +13,7 @@
 module.exports = {
 	root: true,
 	extends: [
-		"eslint-config-sarpik"
+		"eslint-config-kiprasmel"
 	]
 }
 

@@ -93,7 +93,7 @@ Plug 'https://github.com/nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
 Plug 'https://github.com/mbbill/undotree'
 Plug 'https://github.com/rhysd/git-messenger.vim'
 
-Plug 'https://github.com/phaazon/hop.nvim'
+Plug 'https://github.com/smoka7/hop.nvim'
 
 """ Themes
 Plug 'https://github.com/romgrk/doom-one.vim'

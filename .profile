@@ -151,9 +151,6 @@ export PATH="$PATH:$GOPATH/bin"
 # TODO change when PR lands
 export XBAR_PLUGIN_DIR="$HOME/Library/Application Support/xbar/plugins"
 
-# https://github.com/kiprasmel/codespace
-export CODESPACE_CONFIG_ROOT="$HOME/projects/layer2"
-
 # npm package bs - do not build 'sharp' from source, just because i have libvips installed
 export SHARP_IGNORE_GLOBAL_LIBVIPS=1
 

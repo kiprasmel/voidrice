@@ -78,86 +78,59 @@
                                 "type": "basic"
                             }
                         ]
+                    },
+                    {
+                        "description": "Swap § <-> ` so the key left of 1 types `, except on keyboards that already send it: Logitech (any receiver or bluetooth), Razer, Apple 1452/832",
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            { "vendor_id": 1133 },
+                                            { "vendor_id": 5426 },
+                                            {
+                                                "product_id": 832,
+                                                "vendor_id": 1452
+                                            }
+                                        ],
+                                        "type": "device_unless"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "grave_accent_and_tilde",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "non_us_backslash" }],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            { "vendor_id": 1133 },
+                                            { "vendor_id": 5426 },
+                                            {
+                                                "product_id": 832,
+                                                "vendor_id": 1452
+                                            }
+                                        ],
+                                        "type": "device_unless"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "non_us_backslash",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "grave_accent_and_tilde" }],
+                                "type": "basic"
+                            }
+                        ]
                     }
                 ]
             },
-            "devices": [
-                {
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "product_id": 832,
-                        "vendor_id": 1452
-                    },
-                    "simple_modifications": [
-                        {
-                            "from": { "key_code": "grave_accent_and_tilde" },
-                            "to": [{ "key_code": "grave_accent_and_tilde" }]
-                        },
-                        {
-                            "from": { "key_code": "non_us_backslash" },
-                            "to": [{ "key_code": "non_us_backslash" }]
-                        }
-                    ]
-                },
-                {
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "product_id": 678,
-                        "vendor_id": 5426
-                    },
-                    "simple_modifications": [
-                        {
-                            "from": { "key_code": "grave_accent_and_tilde" },
-                            "to": [{ "key_code": "grave_accent_and_tilde" }]
-                        }
-                    ]
-                },
-                {
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "product_id": 50504,
-                        "vendor_id": 1133
-                    },
-                    "simple_modifications": [
-                        {
-                            "from": { "key_code": "grave_accent_and_tilde" },
-                            "to": [{ "key_code": "grave_accent_and_tilde" }]
-                        },
-                        {
-                            "from": { "key_code": "non_us_backslash" },
-                            "to": [{ "key_code": "non_us_backslash" }]
-                        }
-                    ]
-                },
-                {
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "product_id": 50475,
-                        "vendor_id": 1133
-                    },
-                    "simple_modifications": [
-                        {
-                            "from": { "key_code": "grave_accent_and_tilde" },
-                            "to": [{ "key_code": "grave_accent_and_tilde" }]
-                        },
-                        {
-                            "from": { "key_code": "non_us_backslash" },
-                            "to": [{ "key_code": "non_us_backslash" }]
-                        }
-                    ]
-                }
-            ],
             "name": "Default profile",
             "selected": true,
             "simple_modifications": [
-                {
-                    "from": { "key_code": "grave_accent_and_tilde" },
-                    "to": [{ "key_code": "non_us_backslash" }]
-                },
-                {
-                    "from": { "key_code": "non_us_backslash" },
-                    "to": [{ "key_code": "grave_accent_and_tilde" }]
-                },
                 {
                     "from": { "key_code": "right_option" },
                     "to": [{ "key_code": "right_control" }]

@@ -6,7 +6,9 @@ These are the dotfiles deployed by [LARBS](https://larbs.xyz), as seen on [Luke'
 
 - Very useful scripts are in `~/.local/bin/`
 - Settings for:
-	- vim, nvim, vscode
+	- vim, nvim
+	- vscode / vscodium / cursor -- settings, keybinds & extensions are in a [gist](https://gist.github.com/kiprasmel/de9160a0602463fb752f2d84d7aa4fd8),
+	  applied by LARBS' [`vscode.sh`](https://github.com/kiprasmel/LARBS/blob/master/vscode.sh)
 	- git w/ many comfy aliases & extra utils
 	- zsh, incl. fish-like autocompletions
 	- tmux (terminal multiplexer)
@@ -30,50 +32,35 @@ These are the dotfiles deployed by [LARBS](https://larbs.xyz), as seen on [Luke'
 	- File bookmarks in `~/.config/files`
 	- Directory bookmarks in `~/.config/directories`
 
-## Not included here
-
-- VSCode config (settings, keybinds, extensions, themes etc.): https://gist.github.com/kiprasmel/de9160a0602463fb752f2d84d7aa4fd8
-  (applied to VSCodium/Cursor/VS Code by LARBS' [`vscode.sh`](https://github.com/kiprasmel/LARBS/blob/master/vscode.sh))
-
-- st ([Kipras'](https://github.com/kiprasmel/st) or [Luke's](https://github.com/lukesmithxyz/st)) - terminal emulator
-- [mutt-wizard (`mw`)](https://github.com/lukesmithxyz/mutt-wizard) - a terminal-based email system that can store your mail offline without effort
-- dwm ([Luke's](https://github.com/lukesmithxyz/dwm), Kipras is staying with i3) - window manager 
-- dwmblocks ([Luke's](https://github.com/lukesmithxyz/dwmblocks)) - statusbar
-
 ## Install these dotfiles and all dependencies
 
-### Arch Linux
-
-![](./.local/share/archrice.png)
-
-On an Arch Linux (or similar) system, use [LARBS](https://larbs.xyz) ([Kipras' fork](https://github.com/kiprasmel/larbs)) to autoinstall everything:
-
-```sh
-curl -LO http://raw.githubusercontent.com/kiprasmel/LARBS/master/larbs.sh
-
-# inspect the script, and then
-
-./larbs.sh -r https://github.com/kiprasmel/voidrice
-```
-
-### MacOS
-
-![](./.local/share/macrice.png)
-
-Same as Arch: [LARBS](https://github.com/kiprasmel/larbs) detects macOS and runs its
-[`macos.sh`](https://github.com/kiprasmel/LARBS/blob/master/macos.sh):
+[LARBS](https://github.com/kiprasmel/larbs) (Kipras' fork of [Luke's](https://larbs.xyz)) installs everything,
+incl. the programs (e.g. st, from [Kipras' fork](https://github.com/kiprasmel/st), and mutt-wizard) and the vscode settings.
+It detects the OS: on Arch Linux (or similar) it runs its [`arch.sh`](https://github.com/kiprasmel/LARBS/blob/master/arch.sh) (as root),
+on macOS its [`macos.sh`](https://github.com/kiprasmel/LARBS/blob/master/macos.sh) (as your user):
 
 ```sh
 curl -LO https://raw.githubusercontent.com/kiprasmel/LARBS/master/larbs.sh
 
 # inspect the script, and then
 
-sh larbs.sh
+chmod +x larbs.sh
+./larbs.sh -r https://github.com/kiprasmel/voidrice # or your fork
 ```
+
+The dotfiles end up managed like described [below](#managing-these-dotfiles).
+
+### Arch Linux
+
+![](./.local/share/archrice.png)
+
+### MacOS
+
+![](./.local/share/macrice.png)
 
 It's safe to re-run, and prints the remaining manual steps at the end.
 
-#### What it changes, and why
+#### What it changes, and why (macOS)
 
 - Installs homebrew w/ the [Brewfile](https://github.com/kiprasmel/LARBS/blob/master/Brewfile),
   these dotfiles (w/ submodules), and the VSCode settings (see above).
@@ -102,33 +89,34 @@ and you can switch anytime w/ these scripts in the LARBS repo:
 
 ### Other
 
-alternatively, clone the repository directly to your home directory and install [the prerequisite programs](https://github.com/kiprasmel/LARBS/blob/master/progs.csv) (or equivalent, e.g. on macos at least GNU `coreutils` are needed).
+alternatively, set up the dotfiles by hand (see below) and install [the prerequisite programs](https://github.com/kiprasmel/LARBS/blob/master/progs.csv) (or equivalent, e.g. on macos at least GNU `coreutils` are needed).
 
 ## Managing these dotfiles
 
-As simple as can be.
+`$HOME` is the work tree, and the git directory is `~/.dotfiles` (not `~/.git`, so that git doesn't treat everything under `~` as one repo).
+Use `config` instead of `git` for it (defined in `~/.config/aliasrc`): `config status`, `config add -f <file>`, `config commit`, etc.
+`~/.gitignore` ignores everything, so only files added w/ `-f` are tracked.
 
-Fork the repository and clone it as a bare repo:
+LARBS sets this up. By hand, e.g. for your fork:
 
 ```sh
-# fork in github
+cd ~ # `config submodule` only works from inside the work tree
 
-# then, clone into a bare repo:
-git clone --bare http://github.com/<your-username>/voidrice ~/.dotfiles
+# a regular clone, not --bare: a bare one has no origin/* remote-tracking branches, nor upstreams for the branches
+git clone --no-checkout https://github.com/<your-username>/voidrice /tmp/voidrice
+mv /tmp/voidrice/.git ~/.dotfiles
+rm -rf /tmp/voidrice
 
-# create an alias to manage the dotfiles
-cat >> ~/.zshrc <<'EOF'
-alias config='/usr/bin/git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
-EOF
+# until the dotfiles' aliasrc is in place
+config() { git --git-dir="$HOME/.dotfiles" --work-tree="$HOME" "$@"; }
 
-# ignore all files by default (to start tracking a new file, use git add -f)
-printf "*" > ~/.gitignore
+# put the files into ~. doesn't overwrite anything: if it lists conflicting files,
+# move them away (or merge them in later) and run it again
+config checkout
+config submodule update --init --recursive
 ```
 
-and now your `$HOME` directory acts as a git repository, just that instead of using the `git` command, you use the `config` one --
-this prevents you from accidently committing files in other repositories, and in general has multiple benefits.
-
-originally inspired by "bare repository and alias method" in https://wiki.archlinux.org/title/Dotfiles#Tracking_dotfiles_directly_with_Git
+similar to the "bare repository and alias method" in https://wiki.archlinux.org/title/Dotfiles#Tracking_dotfiles_directly_with_Git
 
 ## Integrating upstream improvements
 
@@ -153,7 +141,7 @@ e.g. Luke has moved on from i3 to dwm, meanwhile i myself am staying with i3.
 
 ### Performing merges comfortably
 
-because of the bare repository, you couldn't simply use vscode to open the $HOME directory & start resolving changes.
+because the git directory isn't `~/.git`, you couldn't simply use vscode to open the $HOME directory & start resolving changes.
 (i [asked](https://github.com/microsoft/vscode/issues/80946), but it's not available as of yet).
 
 but, turns out there's a work-around: https://github.com/microsoft/vscode/issues/77215#issuecomment-615834544
@@ -161,4 +149,6 @@ but, turns out there's a work-around: https://github.com/microsoft/vscode/issues
 ```sh
 GIT_WORK_TREE="$HOME" GIT_DIR="$HOME/.dotfiles" code "$HOME"
 ```
+
+(that's `comerge` in `~/.config/aliasrc`, w/ your `$GUI_EDITOR`)
 

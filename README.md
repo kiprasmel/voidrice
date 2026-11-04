@@ -60,8 +60,8 @@ curl -LO http://raw.githubusercontent.com/kiprasmel/LARBS/master/larbs.sh
 
 ![](./.local/share/macrice.png)
 
-Same as Arch: [LARBS](https://github.com/kiprasmel/larbs) detects macOS and runs its `macos.sh`
-(homebrew w/ the Brewfile, these dotfiles, system settings, yabai/skhd):
+Same as Arch: [LARBS](https://github.com/kiprasmel/larbs) detects macOS and runs its
+[`macos.sh`](https://github.com/kiprasmel/LARBS/blob/master/macos.sh):
 
 ```sh
 curl -LO https://raw.githubusercontent.com/kiprasmel/LARBS/master/larbs.sh
@@ -73,15 +73,32 @@ sh larbs.sh
 
 It's safe to re-run, and prints the remaining manual steps at the end.
 
+#### What it changes, and why
+
+- Installs homebrew w/ the [Brewfile](https://github.com/kiprasmel/LARBS/blob/master/Brewfile),
+  these dotfiles (w/ submodules), and the VSCode settings (see above).
+- iTerm2 loads its settings from `~/.config/iterm` (a submodule), so they're versioned.
+- Creates an ssh key, if there's none.
+- Dock: spaces aren't rearranged by most recent use, so a desktop keeps its number (and its ctrl+N).
+- Desktop & Dock: clicking the wallpaper reveals the desktop only in Stage Manager, so a stray click doesn't hide every window.
+  And no margins around tiled windows.
+- Keyboard shortcuts: Mission Control & Application windows move from ctrl+up/down to opt+up/down,
+  and "Move left/right a space" (ctrl+left/right) is disabled. That leaves the arrows to tmux:
+  ctrl+up/down = previous/next window, ctrl/opt+left/right = move the window to an earlier/later number.
+  Spaces are switched w/ ctrl/opt+N instead, see below.
+- Fast key repeat, and holding a key repeats it instead of showing the accents popup (e.g. vim's hjkl). Needs a re-login.
+- ctrl+cmd+drag anywhere in a window moves it.
+- Optional, commented out: reduce motion, i.e. desktops crossfade instead of sliding.
+- Sets up spaces (see below), and starts yabai & skhd.
+
 #### Spaces: yabai vs native
 
 yabai can only focus spaces w/ its scripting addition, which needs SIP (partially) disabled --
-not always possible, e.g. on a managed work laptop. LARBS picks the mode from the SIP status, and you can switch anytime:
+not always possible, e.g. on a managed work laptop. LARBS picks the mode from the SIP status,
+and you can switch anytime w/ these scripts in the LARBS repo:
 
-- `~/LARBS/macos-spaces-native.sh` -- SIP enabled: native macos shortcuts. ctrl+1..0 = desktop 1-10, alt+1..6 = desktop 11-16
-- `~/LARBS/macos-spaces-yabai-no-sip.sh` -- SIP disabled: yabai. ctrl+1..0 = space 1-10, alt+1..0 = 11-20, ctrl+alt+1..0 = 21-30
-
-Older notes: https://notes.kipras.org/macos.html#xe5IP3iU-
+- `./macos-spaces-native.sh` -- SIP enabled: native macos shortcuts. ctrl+1..0 = desktop 1-10, opt+1..6 = desktop 11-16
+- `./macos-spaces-yabai-no-sip.sh` -- SIP disabled: yabai. ctrl+1..0 = space 1-10, opt+1..0 = 11-20, ctrl+opt+1..0 = 21-30
 
 ### Other
 

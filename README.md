@@ -59,10 +59,28 @@ curl -LO http://raw.githubusercontent.com/kiprasmel/LARBS/master/larbs.sh
 
 ![](./.local/share/macrice.png)
 
-Some is automated, some is not (yet).
-See my recent notes for the steps to take to fully setup:
+Same as Arch: [LARBS](https://github.com/kiprasmel/larbs) detects macOS and runs its `macos.sh`
+(homebrew w/ the Brewfile, these dotfiles, system settings, yabai/skhd):
 
-https://notes.kipras.org/macos.html#xe5IP3iU-
+```sh
+curl -LO https://raw.githubusercontent.com/kiprasmel/LARBS/master/larbs.sh
+
+# inspect the script, and then
+
+sh larbs.sh
+```
+
+It's safe to re-run, and prints the remaining manual steps at the end.
+
+#### Spaces: yabai vs native
+
+yabai can only focus spaces w/ its scripting addition, which needs SIP (partially) disabled --
+not always possible, e.g. on a managed work laptop. LARBS picks the mode from the SIP status, and you can switch anytime:
+
+- `~/LARBS/macos-spaces-native.sh` -- SIP enabled: native macos shortcuts. ctrl+1..0 = desktop 1-10, alt+1..6 = desktop 11-16
+- `~/LARBS/macos-spaces-yabai-no-sip.sh` -- SIP disabled: yabai. ctrl+1..0 = space 1-10, alt+1..0 = 11-20, ctrl+alt+1..0 = 21-30
+
+Older notes: https://notes.kipras.org/macos.html#xe5IP3iU-
 
 ### Other
 

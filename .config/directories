@@ -64,7 +64,8 @@ b   $HOME/projects/biz
 bz  $HOME/projects/biz
 biz $HOME/projects/biz
 nn 	$HOME/projects/neural-nets-from-scratch
-l2  $HOME/projects/layer2
+l2  $HOME/codespace-config
+cfcs $HOME/codespace-config
 l2s  $HOME/projects/layer2/sintra
 prv $HOME/projects/pull-request-versions
 

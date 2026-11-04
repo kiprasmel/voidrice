@@ -5,6 +5,12 @@ test -n "${DEBUG:-}" && set -x
 
 #cd \"${GIT_PREFIX:-.}\" git clone --filter=blob:none --no-checkout $* || hub clone --filter=blob:none --no-checkout $*
 
+# owner urls that short names (repo, owner/repo) are looked up in, besides
+# github.com/$(git config user.github). one per line, e.g. https://bondora.ghe.com/bondora
+# (blank lines & #comments ignored). not committed - auto-filled with the owner
+# of every repo cloned by full url; delete lines to forget owners.
+OWNER_URLS_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/git-clone-wrap/owner-urls"
+
 git_clone_wrap() {
 	ARGV=()
 
@@ -54,19 +60,119 @@ git_clone_wrap() {
 		"$@" 2> >(filter_stderr)
 	}
 
+	# short names (repo, owner/repo): check all candidate urls in parallel,
+	# clone the one that exists, or prompt if several do.
+	local url=""
+	if is_short_name "${ARGV[0]}" && ! test -e "${ARGV[0]}"; then
+		local -a candidates=() found=()
+		while IFS= read -r url; do candidates+=("$url"); done < <(short_name_candidates "${ARGV[0]}")
+		while IFS= read -r url; do found+=("$url"); done < <(existing_urls "${candidates[@]}" 2>>"$stderr_file")
+		case ${#found[@]} in
+			0) url="" ;;
+			1) url="${found[0]}" ;;
+			*)
+				echo "multiple matches (to forget an owner, delete it from $OWNER_URLS_FILE):" >&2
+				url=$(pick_url "${found[@]}") || {
+					echo "clone one by full url:" >&2
+					printf '  %s\n' "${found[@]}" >&2
+					rm -f "$stderr_file"
+					return 1
+				}
+				;;
+		esac
+		if test -n "$url"; then echo "found $url" >&2; fi
+	fi
+
 	{
-		with_clean_stderr git clone --progress "$(https_to_ssh_url "${ARGV[0]}")" "${ARGV[@]:1}" || \
-		with_clean_stderr git clone --progress "git@github.com:$(git config user.github)/${ARGV[0]}" "${ARGV[@]:2}" || \
-		with_clean_stderr git clone --progress "git@github.com:${ARGV[0]}" "${ARGV[@]:2}" || \
-		with_clean_stderr git clone --progress "${ARGV[@]}" || \
-		with_clean_stderr hub clone --progress "${ARGV[@]}"
+		if test -n "$url"; then
+			with_clean_stderr git clone --progress "$url" "${ARGV[@]:1}"
+		else
+			with_clean_stderr git clone --progress "$(https_to_ssh_url "${ARGV[0]}")" "${ARGV[@]:1}" || \
+			with_clean_stderr git clone --progress "${ARGV[@]}" || \
+			with_clean_stderr hub clone --progress "${ARGV[@]}"
+		fi
 	} \
-	&& { echo "done" >&2; rm -f "$stderr_file"; return 0; } \
+	&& { echo "done" >&2; rm -f "$stderr_file"; remember_owner_url "${ARGV[0]}"; return 0; } \
 	|| { echo "failed. see errors in" >&2; echo "$stderr_file"; return 1; }
 }
 
 https_to_ssh_url() {
-	echo "$1" | sed 's#.*://#git@#g; s#/#:#'
+	# GHE.com (enterprise w/ data residency) uses the subdomain as ssh user, not "git":
+	# https://bondora.ghe.com/org/repo -> bondora@bondora.ghe.com:org/repo
+	echo "$1" | sed -E 's#^([a-z]+://)?([^./@]+)\.ghe\.com/#\2@\2.ghe.com/#; s#.*://#git@#g; s#/#:#'
+}
+
+# repo or owner/repo, as opposed to a full url or a path
+is_short_name() {
+	case "$1" in *://*|*@*|*:*|*/*/*|.*|/*|~*|'') return 1 ;; esac
+}
+
+# ssh urls a short name could refer to: remembered owners, then github.com
+short_name_candidates() {
+	local repo="$1" url user
+	{
+		while IFS= read -r url; do https_to_ssh_url "$url"; done < <(owner_candidates "$repo")
+		case "$repo" in
+			*/*) echo "git@github.com:$repo" ;;
+			*) user=$(git config user.github) && echo "git@github.com:$user/$repo" ;;
+		esac
+	} | awk '!seen[$0]++'
+}
+
+# print which of the given urls exist, checking all of them in parallel.
+# errors of the ones that don't go to stderr.
+existing_urls() {
+	local dir i
+	local -a urls=("$@")
+	dir=$(mktemp -d)
+	for i in "${!urls[@]}"; do
+		# BatchMode: parallel checks must not prompt for passphrases
+		{ GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes" \
+			git ls-remote "${urls[$i]}" HEAD >/dev/null 2>"$dir/$i.err" && touch "$dir/$i"; } &
+	done
+	wait
+	for i in "${!urls[@]}"; do
+		test -e "$dir/$i" && echo "${urls[$i]}" || { echo "${urls[$i]}:"; cat "$dir/$i.err"; } >&2
+	done
+	rm -rf "$dir"
+}
+
+# let the user pick one of several urls (needs a terminal)
+pick_url() {
+	local PS3="clone which? " url
+	( : </dev/tty ) 2>/dev/null || return 1
+	select url in "$@"; do
+		test -n "$url" && { echo "$url"; return 0; }
+	done </dev/tty
+	return 1
+}
+
+# repo       -> <url>/repo
+# owner/repo -> <url's host>/owner/repo
+owner_candidates() {
+	local repo="$1" url
+	is_short_name "$repo" || return 0
+	test -f "$OWNER_URLS_FILE" || return 0
+	grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' "$OWNER_URLS_FILE" | sed 's#/*$##' | while IFS= read -r url; do
+		case "$repo" in
+			*/*) echo "$(echo "$url" | sed -E 's#^(([a-z]+://)?[^/]+).*#\1#')/$repo" ;;
+			*) echo "$url/$repo" ;;
+		esac
+	done | awk '!seen[$0]++'
+}
+
+# remember owner url of a repo cloned by full url, for later short-name clones:
+# https://github.com/owner/repo, git@github.com:owner/repo.git -> https://github.com/owner
+remember_owner_url() {
+	local url
+	case "$1" in file://*) return 0 ;; esac
+	test -e "$1" && return 0 # local path
+	url=$(echo "${1%/}" | sed -nE 's#^([a-z+]+://)?([^@/]+@)?([^/:@]+\.[^/:@]+)[/:](.+)/[^/]+$#https://\3/\4#p')
+	test -n "$url" || return 0
+	grep -qxF "$url" "$OWNER_URLS_FILE" 2>/dev/null && return 0
+	mkdir -p "$(dirname "$OWNER_URLS_FILE")"
+	echo "$url" >> "$OWNER_URLS_FILE"
+	echo "remembered $url for short-name clones (delete it from $OWNER_URLS_FILE to forget)" >&2
 }
 
 git_clone_wrap "$@"

@@ -33,6 +33,7 @@ These are the dotfiles deployed by [LARBS](https://larbs.xyz), as seen on [Luke'
 ## Not included here
 
 - VSCode config (settings, keybinds, extensions, themes etc.): https://gist.github.com/kiprasmel/de9160a0602463fb752f2d84d7aa4fd8
+  (applied to VSCodium/Cursor/VS Code by LARBS' [`vscode.sh`](https://github.com/kiprasmel/LARBS/blob/master/vscode.sh))
 
 - st ([Kipras'](https://github.com/kiprasmel/st) or [Luke's](https://github.com/lukesmithxyz/st)) - terminal emulator
 - [mutt-wizard (`mw`)](https://github.com/lukesmithxyz/mutt-wizard) - a terminal-based email system that can store your mail offline without effort

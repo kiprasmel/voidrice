@@ -1,12 +1,16 @@
 {
   "model": "opus",
+  "outputStyle": "Concise",
   "modelSettings": {
     "claude-opus-5-5": {
       "effortLevel": "xhigh"
     }
   },
+  "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
-  "outputStyle": "Concise",
+  "editorMode": "vim",
   "verbose": false,
-  "skipDangerousModePermissionPrompt": true
+  "attribution": {
+    "commit": ""
+  }
 }

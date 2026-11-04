@@ -11,6 +11,10 @@ test -n "${DEBUG:-}" && set -x
 # of every repo cloned by full url; delete lines to forget owners.
 OWNER_URLS_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/git-clone-wrap/owner-urls"
 
+# short-name lookup: dir w/ the checks' results & clones, & the checks' pids
+SPEC_DIR=""
+CHECK_JOBS=()
+
 git_clone_wrap() {
 	ARGV=()
 
@@ -60,31 +64,125 @@ git_clone_wrap() {
 		"$@" 2> >(filter_stderr)
 	}
 
-	# short names (repo, owner/repo): check all candidate urls in parallel,
-	# clone the one that exists, or prompt if several do.
-	local url=""
-	if is_short_name "${ARGV[0]}" && ! test -e "${ARGV[0]}"; then
-		local -a candidates=() found=()
+	# check whether url $2 exists, and if so (& $3 is set), start cloning it into $SPEC_DIR/$1/.
+	# result in $SPEC_DIR/$1.check: found / missing / failed (errors in $1.err)
+	check_and_clone() {
+		local i="$1" url="$2" speculate="$3" result=found clone_pid=""
+		# BatchMode: parallel checks must not prompt for passphrases
+		if ! GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes" \
+			git ls-remote "$url" HEAD >/dev/null 2>"$SPEC_DIR/$i.err"; then
+			grep -qiE 'not found|could not be found|does not exist' "$SPEC_DIR/$i.err" && result=missing || result=failed
+		elif test -n "$speculate" && mkdir "$SPEC_DIR/$i"; then
+			(cd "$SPEC_DIR/$i" && exec git clone --progress "$url" "${ARGV[@]:1}") 2>"$SPEC_DIR/$i.progress" &
+			clone_pid=$!
+		fi
+		echo "$result" > "$SPEC_DIR/$i.check"
+		if test -n "$clone_pid"; then
+			wait "$clone_pid" && echo 0 > "$SPEC_DIR/$i.exit" || echo $? > "$SPEC_DIR/$i.exit"
+		fi
+	}
+
+	# stop a match's clone & remove it
+	abort_clone() {
+		pkill -P "${CHECK_JOBS[$1]}" 2>/dev/null || true
+		wait "${CHECK_JOBS[$1]}" 2>/dev/null || true
+		rm -rf "${SPEC_DIR:?}/$1"
+	}
+
+	# show the progress of an already running clone, then move it into place
+	finish_clone() {
+		local i="$1" tail_pid entry
+		tail -n +1 -f "$SPEC_DIR/$i.progress" 2>/dev/null > >(filter_stderr) &
+		tail_pid=$!
+		while ! test -s "$SPEC_DIR/$i.exit"; do sleep 0.2; done
+		sleep 0.2 # let tail catch up
+		kill "$tail_pid" 2>/dev/null || true
+		if test "$(cat "$SPEC_DIR/$i.exit")" != 0; then
+			tr '\r' '\n' < "$SPEC_DIR/$i.progress" >> "$stderr_file"
+			return 1
+		fi
+		entry=$(ls -A "$SPEC_DIR/$i")
+		if test -e "$entry"; then
+			echo "fatal: destination path '$entry' already exists" >> "$stderr_file"
+			return 1
+		fi
+		mv "$SPEC_DIR/$i/$entry" .
+	}
+
+	# short names (repo, owner/repo): check all candidate urls in parallel, and start
+	# cloning each match right away, so a slow check doesn't hold the others up.
+	# once all checks are in, one match is kept, several prompt & the rest get aborted.
+	# sets $url, and $pick if its clone is already running.
+	lookup_short_name() {
+		local -a candidates=() found=() found_urls=() reported=()
+		local i j arg n=0 speculate=1
 		while IFS= read -r url; do candidates+=("$url"); done < <(short_name_candidates "${ARGV[0]}")
-		while IFS= read -r url; do found+=("$url"); done < <(existing_urls "${candidates[@]}" 2>>"$stderr_file")
+		url=""
+		test ${#candidates[@]} -gt 0 || return 0
+
+		if test ${#ARGV[@]} -eq 1 && test -e "$(basename "${ARGV[0]}" .git)"; then
+			echo "fatal: destination path '$(basename "${ARGV[0]}" .git)' already exists" >&2
+			return 1
+		fi
+		# extra args may be paths, which'd break when cloning elsewhere - clone after the pick then
+		for arg in "${ARGV[@]:1}"; do
+			case "$arg" in */*|~*|--separate-git-dir*|--reference*|--template*) speculate="" ;; esac
+		done
+
+		# in cwd, so the picked clone can be moved out instantly
+		SPEC_DIR=$(mktemp -d "./.git-clone-wrap.XXXXXX") || return 1
+		trap cleanup_spec EXIT
+		trap 'exit 130' INT TERM
+		echo "looking up ${ARGV[0]} in ${#candidates[@]} places..." >&2
+		for i in "${!candidates[@]}"; do
+			# (no "Terminated" noise when aborted)
+			check_and_clone "$i" "${candidates[$i]}" "$speculate" 2>/dev/null &
+			CHECK_JOBS[$i]=$!
+		done
+
+		# report matches & failed checks as they come in
+		while test $n -lt ${#candidates[@]}; do
+			for i in "${!candidates[@]}"; do
+				test -z "${reported[$i]:-}" && test -s "$SPEC_DIR/$i.check" || continue
+				reported[$i]=1
+				n=$((n + 1))
+				case "$(cat "$SPEC_DIR/$i.check")" in
+					found) found+=("$i"); echo "  found        ${candidates[$i]}" >&2 ;;
+					failed) echo "  check failed ${candidates[$i]}: $(head -1 "$SPEC_DIR/$i.err")" >&2 ;;
+				esac
+			done
+			if test $n -lt ${#candidates[@]}; then sleep 0.2; fi
+		done
+
 		case ${#found[@]} in
-			0) url="" ;;
-			1) url="${found[0]}" ;;
+			0) echo "  no match" >&2; return 0 ;;
+			1) i="${found[0]}" ;;
 			*)
+				for j in "${found[@]}"; do found_urls+=("${candidates[$j]}"); done
 				echo "multiple matches (to forget an owner, delete it from $OWNER_URLS_FILE):" >&2
-				url=$(pick_url "${found[@]}") || {
+				url=$(pick_url "${found_urls[@]}") || {
 					echo "clone one by full url:" >&2
-					printf '  %s\n' "${found[@]}" >&2
-					rm -f "$stderr_file"
+					printf '  %s\n' "${found_urls[@]}" >&2
 					return 1
 				}
+				for j in "${found[@]}"; do
+					if test "${candidates[$j]}" = "$url"; then i=$j; else abort_clone "$j"; fi
+				done
 				;;
 		esac
-		if test -n "$url"; then echo "found $url" >&2; fi
+		url="${candidates[$i]}"
+		if test -n "$speculate"; then pick="$i"; fi
+	}
+
+	local url="" pick=""
+	if is_short_name "${ARGV[0]}" && ! test -e "${ARGV[0]}"; then
+		lookup_short_name || { rm -f "$stderr_file"; return 1; }
 	fi
 
 	{
-		if test -n "$url"; then
+		if test -n "$pick"; then
+			finish_clone "$pick"
+		elif test -n "$url"; then
 			with_clean_stderr git clone --progress "$url" "${ARGV[@]:1}"
 		else
 			with_clean_stderr git clone --progress "$(https_to_ssh_url "${ARGV[0]}")" "${ARGV[@]:1}" || \
@@ -119,22 +217,18 @@ short_name_candidates() {
 	} | awk '!seen[$0]++'
 }
 
-# print which of the given urls exist, checking all of them in parallel.
-# errors of the ones that don't go to stderr.
-existing_urls() {
-	local dir i
-	local -a urls=("$@")
-	dir=$(mktemp -d)
-	for i in "${!urls[@]}"; do
-		# BatchMode: parallel checks must not prompt for passphrases
-		{ GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes" \
-			git ls-remote "${urls[$i]}" HEAD >/dev/null 2>"$dir/$i.err" && touch "$dir/$i"; } &
+# abort checks & clones of a short-name lookup still running, & remove their dirs
+cleanup_spec() {
+	local i
+	test -n "$SPEC_DIR" && test -d "$SPEC_DIR" || return 0
+	for i in "${!CHECK_JOBS[@]}"; do
+		# still checking, or still cloning
+		if ! test -s "$SPEC_DIR/$i.check" || { test -d "$SPEC_DIR/$i" && ! test -s "$SPEC_DIR/$i.exit"; }; then
+			pkill -P "${CHECK_JOBS[$i]}" 2>/dev/null || true
+		fi
 	done
 	wait
-	for i in "${!urls[@]}"; do
-		test -e "$dir/$i" && echo "${urls[$i]}" || { echo "${urls[$i]}:"; cat "$dir/$i.err"; } >&2
-	done
-	rm -rf "$dir"
+	rm -rf "$SPEC_DIR" 2>/dev/null || { sleep 1; rm -rf "$SPEC_DIR"; }
 }
 
 # let the user pick one of several urls (needs a terminal)

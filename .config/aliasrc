@@ -477,7 +477,9 @@ gj() { __gitwrap j $* }
 # git done.
 
 cs() {
-	codespace-op "$@"
+	local cmd="codespace-op"
+	which $cmd &>/dev/null || cmd="codespace"
+	$cmd "$@"
 }
 
 # docker

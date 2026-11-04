@@ -115,7 +115,7 @@ git_clone_wrap() {
 	# sets $url, and $pick if its clone is already running.
 	lookup_short_name() {
 		local -a candidates=() found=() found_urls=() reported=()
-		local i j arg n=0 speculate=1
+		local i j arg cmd n=0 speculate=1
 		while IFS= read -r url; do candidates+=("$url"); done < <(short_name_candidates "${ARGV[0]}")
 		url=""
 		test ${#candidates[@]} -gt 0 || return 0
@@ -161,8 +161,12 @@ git_clone_wrap() {
 				for j in "${found[@]}"; do found_urls+=("${candidates[$j]}"); done
 				echo "multiple matches (to forget an owner, delete it from $OWNER_URLS_FILE):" >&2
 				url=$(pick_url "${found_urls[@]}") || {
-					echo "clone one by full url:" >&2
-					printf '  %s\n' "${found_urls[@]}" >&2
+					# full urls aren't looked up, so this clones just that one
+					echo "to clone one without the prompt, re-run with its url:" >&2
+					for url in "${found_urls[@]}"; do
+						cmd=$(printf '%q ' "$(basename "$0")" "$url" "${ARGV[@]:1}")
+						echo "  ${cmd% }" >&2
+					done
 					return 1
 				}
 				for j in "${found[@]}"; do
@@ -195,6 +199,7 @@ git_clone_wrap() {
 }
 
 https_to_ssh_url() {
+	case "$1" in [!/]*@*:*) echo "$1"; return 0 ;; esac # already user@host:path
 	# GHE.com (enterprise w/ data residency) uses the subdomain as ssh user, not "git":
 	# https://bondora.ghe.com/org/repo -> bondora@bondora.ghe.com:org/repo
 	echo "$1" | sed -E 's#^([a-z]+://)?([^./@]+)\.ghe\.com/#\2@\2.ghe.com/#; s#.*://#git@#g; s#/#:#'

@@ -11,6 +11,7 @@
   "editorMode": "vim",
   "verbose": false,
   "attribution": {
-    "commit": ""
+    "commit": "",
+    "pr": ""
   }
 }

@@ -276,7 +276,8 @@ export GPG_AGENT_INFO="_" # set to non-empty to avoid the check in /usr/bin/pass
 # questionable if I need this
 gpg-connect-agent updatestartuptty /bye >/dev/null
 
-command -v yarn &>/dev/null && {
+# yarn needs node, which isn't always around (e.g. no default nvm version), even if yarn is
+command -v yarn >/dev/null 2>&1 && command -v node >/dev/null 2>&1 && {
 	# needs to be below because nvm
 	# see https://stackoverflow.com/a/15646750/9285308
 	# and https://github.com/yarnpkg/yarn/issues/2049#issuecomment-397629921

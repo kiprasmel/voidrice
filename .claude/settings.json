@@ -1,0 +1,12 @@
+{
+  "model": "opus",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
+    }
+  },
+  "theme": "dark",
+  "outputStyle": "Concise",
+  "verbose": false,
+  "skipDangerousModePermissionPrompt": true
+}

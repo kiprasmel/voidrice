@@ -1,0 +1,35 @@
+#!/bin/sh
+
+# Prints the web url for the current branch, w/o needing gh:
+# - its PR, if gh is logged in to the remote's host and finds one,
+# - otherwise the branch's page, if it's pushed and not the default branch,
+# - otherwise the repo itself.
+# Used by `git o` (opens it) & `git sopr` (prints it).
+
+upstream="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)" # e.g. origin/feat/x
+remote="${upstream%%/*}"
+[ -n "$remote" ] || remote=origin
+web="$(git remote get-url "$remote" 2>/dev/null)" || { echo "git-weburl: no remote \`$remote\`" >&2; exit 1; }
+
+# remote url -> https://host/owner/repo
+case "$web" in
+*://*) web="${web#*://}" ;;                 # https://, ssh://, git://
+*:*) web="$(echo "$web" | sed 's|:|/|')" ;; # scp-like [user@]host:owner/repo
+*) echo "git-weburl: \`$remote\` is a local path, not a web repo: $web" >&2 && exit 1 ;;
+esac
+host="${web%%/*}" path="${web#*/}"
+host="${host#*@}" && host="${host%:*}" # w/o user@ and :port
+path="${path%/}" && path="${path%.git}"
+repo="https://$host/$path"
+
+branch="${upstream#*/}"
+default="$(git symbolic-ref -q --short "refs/remotes/$remote/HEAD")"
+default="${default#"$remote"/}"
+case "$branch" in
+"" | "$default" | master | main) echo "$repo" && exit ;;
+esac
+
+if command -v gh >/dev/null && gh auth token -h "$host" >/dev/null 2>&1; then
+	pr="$(gh pr view --json url -q .url 2>/dev/null)" && [ -n "$pr" ] && echo "$pr" && exit
+fi
+echo "$repo/tree/$branch"

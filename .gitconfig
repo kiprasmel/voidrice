@@ -288,9 +288,9 @@
 
 	#n =
 
-	# open PR
-	o = !git sopr | xargs open
-	sopr = !gh pr view --json url | jq -e -r .url || gh repo view --json url | jq -r .url | xargs -I{} echo "{}/tree/$(git branch --show-current)" || git browse # https://github.com/tj/git-extras/blob/main/bin/git-browse
+	# open PR, or the branch, or the repo (gh optional). see ~/.local/bin/git-weburl
+	o = "!url=\"$(git-weburl)\" && open \"$url\""
+	sopr = !git-weburl
 
 	# open file
 	of = "!git browse origin \"$1\""
